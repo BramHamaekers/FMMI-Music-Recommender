@@ -18,24 +18,28 @@ router.use(express.json())
 
 /** Tell the application to start listining on port = PORT */
 app.listen(PORT, () => {
-    console.log("Server is running on port", PORT);
+    console.log("Server is now running on port", PORT);
 });
 
 /** Template on how to handle a request and return a message */
-router.get("/ping", async (_req, res) => {
+router.get("/ping", async (req, res) => {
     const controller = new PingController();
     const response = await controller.getMessage();
     return res.send(response);
 });
 
 /** Template on how to handle a request and return an htlm page */
-router.get("/", async (_req, res) => {
-        res.sendFile(path.join(__dirname, '/../src/resources/html/main.html'));
+router.get("/", async (req, res) => {
+        res.sendFile(path.join(__dirname, '/../src/resources/html/test.html'));
 });
 
+router.get(/A|B/, async (req, res) => {
+        res.sendFile(path.join(__dirname, '/../src/resources/html/main.html'));
+})
+
 /** Template on how to handle request for a script */
-router.get("/scripts/main.js", async (_req, res) => {
-    res.sendFile(path.join(__dirname, '/../src/resources/scripts/main.js'));
+router.get("/scripts/test.js", async (_req, res) => {
+    res.sendFile(path.join(__dirname, '/../src/resources/scripts/test.js'));
 });
 
 /** Template on how to recieve data from the html webpage  and respond with a json*/
