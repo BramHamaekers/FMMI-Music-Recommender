@@ -49,3 +49,22 @@ router.post('/',function(req,res){
  });
 
 
+/** add getter for storageScripts.js */
+router.get("/scripts/storageScripts.js", async (_req, res) => {
+    res.sendFile(path.join(__dirname, '/../src/resources/scripts/storageScripts.js'));
+});
+
+/** add getter for timerScripts.js */
+router.get("/scripts/timerScripts.js", async (_req, res) => {
+    res.sendFile(path.join(__dirname, '/../src/resources/scripts/timerScripts.js'));
+});
+
+/** get storage test page*/
+router.get("/storageTest", async (req, res) => {
+    res.sendFile(path.join(__dirname, '/../src/resources/html/storageTest.html'));
+});
+
+/** get timer test page*/
+router.get("/timerTest", async (req, res) => {
+    res.sendFile(path.join(__dirname, '/../src/resources/html/timerTest.html'));
+});
