@@ -89438,6 +89438,7 @@ function addGenre(genre) {
 //Submit button
 document.getElementById("submitBtn").addEventListener("click", getRecommendations);
 function getRecommendations(e) {
+  if (genreList.length > 0) {
     e.preventDefault();
     spotifyApi.getRecommendations({seed_genres: genreList},function (err, data) {
       if (err) console.error(err);
@@ -89447,6 +89448,7 @@ function getRecommendations(e) {
 
       }
     })
+  }
   }
 
   
