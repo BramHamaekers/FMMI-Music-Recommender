@@ -39584,2184 +39584,6 @@ function extend() {
 }
 
 },{}],257:[function(require,module,exports){
-(function (Buffer){(function (){
-var request = require('request'); // "Request" library
-var SpotifyWebApi = require('./spotify-web-api-js');
-
-/*****************************************************************************
-*                            SET UP AUTHENTICATION
-/*****************************************************************************/
-
-var client_id = '882f18d8e93e419d85e06d9fe9ee9768'; // Your client id
-var client_secret = '6fb7db9d3d4d45dea315d47e645919aa'; // Your secret
-let token;
-let tokenstring;
-const spotifyApi = new SpotifyWebApi();
-
-// your application requests authorization
-var authOptions = {
-  url: 'https://accounts.spotify.com/api/token',
-  headers: {
-    'Authorization': 'Basic ' + (new Buffer(client_id + ':' + client_secret).toString('base64'))
-  },
-  form: {
-    grant_type: 'client_credentials'
-  },
-  json: true
-};
-
-
-// Gets the token
-request.post(authOptions, function (error, response, body) {
-  if (!error && response.statusCode === 200) {
-
-    // use the access token to access the Spotify Web API
-    token = body.access_token;
-    tokenstring = token.toString();
-    
-    spotifyApi.setAccessToken(tokenstring);
-  }
-});
-
-/*****************************************************************************
-*                            SET UP LISTNERS
-/*****************************************************************************/
-
-document.getElementById("genreBtn").addEventListener("click", getGenreSeed);
-document.getElementById("artistBtn").addEventListener("click", getArtist);
-document.getElementById("recBtn").addEventListener("click", getRecommendations);
-
-
-/*****************************************************************************
-*                            FUNCTIONALITY
-/*****************************************************************************/
-
-function getArtist(e) {
-  e.preventDefault();
-  spotifyApi.getArtistAlbums('43ZHCT0cAZBISjO8DG9PnE', function (err, data) {
-    if (err) console.error(err);
-    else console.log('Artist albums', data);
-  });
-}
-
-function getGenreSeed(e) {
-  e.preventDefault();
-  spotifyApi.getAvailableGenreSeeds(function (err, data) {
-    if (err) console.error(err);
-    else console.log('Genre Seed', data);
-  })
-}
-
-function getRecommendations(e) {
-  e.preventDefault();
-  spotifyApi.getRecommendations({seed_genres: ["classical", "country"]},function (err, data) {
-    if (err) console.error(err);
-    else console.log('recommendations', data);
-  })
-}
-
-
-
-
-
-
-
-
-
-
-
-
-}).call(this)}).call(this,require("buffer").Buffer)
-},{"./spotify-web-api-js":258,"buffer":71,"request":371}],258:[function(require,module,exports){
-/* global module */
-'use strict';
-
-/**
- * Class representing the API
- */
-var SpotifyWebApi = (function () {
-  var _baseUri = 'https://api.spotify.com/v1';
-  var _accessToken = null;
-  var _promiseImplementation = null;
-
-  var WrapPromiseWithAbort = function (promise, onAbort) {
-    promise.abort = onAbort;
-    return promise;
-  };
-
-  var _promiseProvider = function (promiseFunction, onAbort) {
-    var returnedPromise;
-    if (_promiseImplementation !== null) {
-      var deferred = _promiseImplementation.defer();
-      promiseFunction(
-        function (resolvedResult) {
-          deferred.resolve(resolvedResult);
-        },
-        function (rejectedResult) {
-          deferred.reject(rejectedResult);
-        }
-      );
-      returnedPromise = deferred.promise;
-    } else {
-      if (window.Promise) {
-        returnedPromise = new window.Promise(promiseFunction);
-      }
-    }
-
-    if (returnedPromise) {
-      return new WrapPromiseWithAbort(returnedPromise, onAbort);
-    } else {
-      return null;
-    }
-  };
-
-  var _extend = function () {
-    var args = Array.prototype.slice.call(arguments);
-    var target = args[0];
-    var objects = args.slice(1);
-    target = target || {};
-    objects.forEach(function (object) {
-      for (var j in object) {
-        if (object.hasOwnProperty(j)) {
-          target[j] = object[j];
-        }
-      }
-    });
-    return target;
-  };
-
-  var _buildUrl = function (url, parameters) {
-    var qs = '';
-    for (var key in parameters) {
-      if (parameters.hasOwnProperty(key)) {
-        var value = parameters[key];
-        qs += encodeURIComponent(key) + '=' + encodeURIComponent(value) + '&';
-      }
-    }
-    if (qs.length > 0) {
-      // chop off last '&'
-      qs = qs.substring(0, qs.length - 1);
-      url = url + '?' + qs;
-    }
-    return url;
-  };
-
-  var _performRequest = function (requestData, callback) {
-    var req = new XMLHttpRequest();
-
-    var promiseFunction = function (resolve, reject) {
-      function success(data) {
-        if (resolve) {
-          resolve(data);
-        }
-        if (callback) {
-          callback(null, data);
-        }
-      }
-
-      function failure() {
-        if (reject) {
-          reject(req);
-        }
-        if (callback) {
-          callback(req, null);
-        }
-      }
-
-      var type = requestData.type || 'GET';
-      req.open(type, _buildUrl(requestData.url, requestData.params));
-      if (_accessToken) {
-        req.setRequestHeader('Authorization', 'Bearer ' + _accessToken);
-      }
-
-      req.onreadystatechange = function () {
-        if (req.readyState === 4) {
-          var data = null;
-          try {
-            data = req.responseText ? JSON.parse(req.responseText) : '';
-          } catch (e) {
-            console.error(e);
-          }
-
-          if (req.status >= 200 && req.status < 300) {
-            success(data);
-          } else {
-            failure();
-          }
-        }
-      };
-
-      if (type === 'GET') {
-        req.send(null);
-      } else {
-        var postData = null;
-        if (requestData.postData) {
-          if (requestData.contentType === 'image/jpeg') {
-            postData = requestData.postData;
-            req.setRequestHeader('Content-Type', requestData.contentType);
-          } else {
-            postData = JSON.stringify(requestData.postData);
-            req.setRequestHeader('Content-Type', 'application/json');
-          }
-        }
-        req.send(postData);
-      }
-    };
-
-    if (callback) {
-      promiseFunction();
-      return null;
-    } else {
-      return _promiseProvider(promiseFunction, function () {
-        req.abort();
-      });
-    }
-  };
-
-  var _checkParamsAndPerformRequest = function (
-    requestData,
-    options,
-    callback,
-    optionsAlwaysExtendParams
-  ) {
-    var opt = {};
-    var cb = null;
-
-    if (typeof options === 'object') {
-      opt = options;
-      cb = callback;
-    } else if (typeof options === 'function') {
-      cb = options;
-    }
-
-    // options extend postData, if any. Otherwise they extend parameters sent in the url
-    var type = requestData.type || 'GET';
-    if (type !== 'GET' && requestData.postData && !optionsAlwaysExtendParams) {
-      requestData.postData = _extend(requestData.postData, opt);
-    } else {
-      requestData.params = _extend(requestData.params, opt);
-    }
-    return _performRequest(requestData, cb);
-  };
-
-  /**
-   * Creates an instance of the wrapper
-   * @constructor
-   */
-  var Constr = function () {};
-
-  Constr.prototype = {
-    constructor: SpotifyWebApi
-  };
-
-  /**
-   * Fetches a resource through a generic GET request.
-   *
-   * @param {string} url The URL to be fetched
-   * @param {function(Object,Object)} callback An optional callback
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getGeneric = function (url, callback) {
-    var requestData = {
-      url: url
-    };
-    return _checkParamsAndPerformRequest(requestData, callback);
-  };
-
-  /**
-   * Fetches information about the current user.
-   * See [Get Current User's Profile](https://developer.spotify.com/web-api/get-current-users-profile/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getMe = function (options, callback) {
-    var requestData = {
-      url: _baseUri + '/me'
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Fetches current user's saved tracks.
-   * See [Get Current User's Saved Tracks](https://developer.spotify.com/web-api/get-users-saved-tracks/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getMySavedTracks = function (options, callback) {
-    var requestData = {
-      url: _baseUri + '/me/tracks'
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Adds a list of tracks to the current user's saved tracks.
-   * See [Save Tracks for Current User](https://developer.spotify.com/web-api/save-tracks-user/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Array<string>} trackIds The ids of the tracks. If you know their Spotify URI it is easy
-   * to find their track id (e.g. spotify:track:<here_is_the_track_id>)
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.addToMySavedTracks = function (trackIds, options, callback) {
-    var requestData = {
-      url: _baseUri + '/me/tracks',
-      type: 'PUT',
-      postData: trackIds
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Remove a list of tracks from the current user's saved tracks.
-   * See [Remove Tracks for Current User](https://developer.spotify.com/web-api/remove-tracks-user/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Array<string>} trackIds The ids of the tracks. If you know their Spotify URI it is easy
-   * to find their track id (e.g. spotify:track:<here_is_the_track_id>)
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.removeFromMySavedTracks = function (
-    trackIds,
-    options,
-    callback
-  ) {
-    var requestData = {
-      url: _baseUri + '/me/tracks',
-      type: 'DELETE',
-      postData: trackIds
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Checks if the current user's saved tracks contains a certain list of tracks.
-   * See [Check Current User's Saved Tracks](https://developer.spotify.com/web-api/check-users-saved-tracks/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Array<string>} trackIds The ids of the tracks. If you know their Spotify URI it is easy
-   * to find their track id (e.g. spotify:track:<here_is_the_track_id>)
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.containsMySavedTracks = function (
-    trackIds,
-    options,
-    callback
-  ) {
-    var requestData = {
-      url: _baseUri + '/me/tracks/contains',
-      params: { ids: trackIds.join(',') }
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Get a list of the albums saved in the current Spotify user's "Your Music" library.
-   * See [Get Current User's Saved Albums](https://developer.spotify.com/web-api/get-users-saved-albums/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getMySavedAlbums = function (options, callback) {
-    var requestData = {
-      url: _baseUri + '/me/albums'
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Save one or more albums to the current user's "Your Music" library.
-   * See [Save Albums for Current User](https://developer.spotify.com/web-api/save-albums-user/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Array<string>} albumIds The ids of the albums. If you know their Spotify URI, it is easy
-   * to find their album id (e.g. spotify:album:<here_is_the_album_id>)
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.addToMySavedAlbums = function (albumIds, options, callback) {
-    var requestData = {
-      url: _baseUri + '/me/albums',
-      type: 'PUT',
-      postData: albumIds
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Remove one or more albums from the current user's "Your Music" library.
-   * See [Remove Albums for Current User](https://developer.spotify.com/web-api/remove-albums-user/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Array<string>} albumIds The ids of the albums. If you know their Spotify URI, it is easy
-   * to find their album id (e.g. spotify:album:<here_is_the_album_id>)
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.removeFromMySavedAlbums = function (
-    albumIds,
-    options,
-    callback
-  ) {
-    var requestData = {
-      url: _baseUri + '/me/albums',
-      type: 'DELETE',
-      postData: albumIds
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Check if one or more albums is already saved in the current Spotify user's "Your Music" library.
-   * See [Check User's Saved Albums](https://developer.spotify.com/web-api/check-users-saved-albums/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Array<string>} albumIds The ids of the albums. If you know their Spotify URI, it is easy
-   * to find their album id (e.g. spotify:album:<here_is_the_album_id>)
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.containsMySavedAlbums = function (
-    albumIds,
-    options,
-    callback
-  ) {
-    var requestData = {
-      url: _baseUri + '/me/albums/contains',
-      params: { ids: albumIds.join(',') }
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Get the current user’s top artists based on calculated affinity.
-   * See [Get a User’s Top Artists](https://developer.spotify.com/web-api/get-users-top-artists-and-tracks/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getMyTopArtists = function (options, callback) {
-    var requestData = {
-      url: _baseUri + '/me/top/artists'
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Get the current user’s top tracks based on calculated affinity.
-   * See [Get a User’s Top Tracks](https://developer.spotify.com/web-api/get-users-top-artists-and-tracks/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getMyTopTracks = function (options, callback) {
-    var requestData = {
-      url: _baseUri + '/me/top/tracks'
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Get tracks from the current user’s recently played tracks.
-   * See [Get Current User’s Recently Played Tracks](https://developer.spotify.com/web-api/web-api-personalization-endpoints/get-recently-played/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getMyRecentlyPlayedTracks = function (options, callback) {
-    var requestData = {
-      url: _baseUri + '/me/player/recently-played'
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Adds the current user as a follower of one or more other Spotify users.
-   * See [Follow Artists or Users](https://developer.spotify.com/web-api/follow-artists-users/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Array<string>} userIds The ids of the users. If you know their Spotify URI it is easy
-   * to find their user id (e.g. spotify:user:<here_is_the_user_id>)
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is an empty value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.followUsers = function (userIds, callback) {
-    var requestData = {
-      url: _baseUri + '/me/following/',
-      type: 'PUT',
-      params: {
-        ids: userIds.join(','),
-        type: 'user'
-      }
-    };
-    return _checkParamsAndPerformRequest(requestData, callback);
-  };
-
-  /**
-   * Adds the current user as a follower of one or more artists.
-   * See [Follow Artists or Users](https://developer.spotify.com/web-api/follow-artists-users/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Array<string>} artistIds The ids of the artists. If you know their Spotify URI it is easy
-   * to find their artist id (e.g. spotify:artist:<here_is_the_artist_id>)
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is an empty value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.followArtists = function (artistIds, callback) {
-    var requestData = {
-      url: _baseUri + '/me/following/',
-      type: 'PUT',
-      params: {
-        ids: artistIds.join(','),
-        type: 'artist'
-      }
-    };
-    return _checkParamsAndPerformRequest(requestData, callback);
-  };
-
-  /**
-   * Add the current user as a follower of one playlist.
-   * See [Follow a Playlist](https://developer.spotify.com/web-api/follow-playlist/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} playlistId The id of the playlist. If you know the Spotify URI it is easy
-   * to find the playlist id (e.g. spotify:user:xxxx:playlist:<here_is_the_playlist_id>)
-   * @param {Object} options A JSON object with options that can be passed. For instance,
-   * whether you want the playlist to be followed privately ({public: false})
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is an empty value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.followPlaylist = function (playlistId, options, callback) {
-    var requestData = {
-      url: _baseUri + '/playlists/' + playlistId + '/followers',
-      type: 'PUT',
-      postData: {}
-    };
-
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Removes the current user as a follower of one or more other Spotify users.
-   * See [Unfollow Artists or Users](https://developer.spotify.com/web-api/unfollow-artists-users/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Array<string>} userIds The ids of the users. If you know their Spotify URI it is easy
-   * to find their user id (e.g. spotify:user:<here_is_the_user_id>)
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is an empty value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.unfollowUsers = function (userIds, callback) {
-    var requestData = {
-      url: _baseUri + '/me/following/',
-      type: 'DELETE',
-      params: {
-        ids: userIds.join(','),
-        type: 'user'
-      }
-    };
-    return _checkParamsAndPerformRequest(requestData, callback);
-  };
-
-  /**
-   * Removes the current user as a follower of one or more artists.
-   * See [Unfollow Artists or Users](https://developer.spotify.com/web-api/unfollow-artists-users/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Array<string>} artistIds The ids of the artists. If you know their Spotify URI it is easy
-   * to find their artist id (e.g. spotify:artist:<here_is_the_artist_id>)
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is an empty value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.unfollowArtists = function (artistIds, callback) {
-    var requestData = {
-      url: _baseUri + '/me/following/',
-      type: 'DELETE',
-      params: {
-        ids: artistIds.join(','),
-        type: 'artist'
-      }
-    };
-    return _checkParamsAndPerformRequest(requestData, callback);
-  };
-
-  /**
-   * Remove the current user as a follower of one playlist.
-   * See [Unfollow a Playlist](https://developer.spotify.com/web-api/unfollow-playlist/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} playlistId The id of the playlist. If you know the Spotify URI it is easy
-   * to find the playlist id (e.g. spotify:user:xxxx:playlist:<here_is_the_playlist_id>)
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is an empty value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.unfollowPlaylist = function (playlistId, callback) {
-    var requestData = {
-      url: _baseUri + '/playlists/' + playlistId + '/followers',
-      type: 'DELETE'
-    };
-    return _checkParamsAndPerformRequest(requestData, callback);
-  };
-
-  /**
-   * Checks to see if the current user is following one or more other Spotify users.
-   * See [Check if Current User Follows Users or Artists](https://developer.spotify.com/web-api/check-current-user-follows/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Array<string>} userIds The ids of the users. If you know their Spotify URI it is easy
-   * to find their user id (e.g. spotify:user:<here_is_the_user_id>)
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is an array of boolean values that indicate
-   * whether the user is following the users sent in the request.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.isFollowingUsers = function (userIds, callback) {
-    var requestData = {
-      url: _baseUri + '/me/following/contains',
-      type: 'GET',
-      params: {
-        ids: userIds.join(','),
-        type: 'user'
-      }
-    };
-    return _checkParamsAndPerformRequest(requestData, callback);
-  };
-
-  /**
-   * Checks to see if the current user is following one or more artists.
-   * See [Check if Current User Follows](https://developer.spotify.com/web-api/check-current-user-follows/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Array<string>} artistIds The ids of the artists. If you know their Spotify URI it is easy
-   * to find their artist id (e.g. spotify:artist:<here_is_the_artist_id>)
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is an array of boolean values that indicate
-   * whether the user is following the artists sent in the request.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.isFollowingArtists = function (artistIds, callback) {
-    var requestData = {
-      url: _baseUri + '/me/following/contains',
-      type: 'GET',
-      params: {
-        ids: artistIds.join(','),
-        type: 'artist'
-      }
-    };
-    return _checkParamsAndPerformRequest(requestData, callback);
-  };
-
-  /**
-   * Check to see if one or more Spotify users are following a specified playlist.
-   * See [Check if Users Follow a Playlist](https://developer.spotify.com/web-api/check-user-following-playlist/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} playlistId The id of the playlist. If you know the Spotify URI it is easy
-   * to find the playlist id (e.g. spotify:user:xxxx:playlist:<here_is_the_playlist_id>)
-   * @param {Array<string>} userIds The ids of the users. If you know their Spotify URI it is easy
-   * to find their user id (e.g. spotify:user:<here_is_the_user_id>)
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is an array of boolean values that indicate
-   * whether the users are following the playlist sent in the request.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.areFollowingPlaylist = function (
-    playlistId,
-    userIds,
-    callback
-  ) {
-    var requestData = {
-      url: _baseUri + '/playlists/' + playlistId + '/followers/contains',
-      type: 'GET',
-      params: {
-        ids: userIds.join(',')
-      }
-    };
-    return _checkParamsAndPerformRequest(requestData, callback);
-  };
-
-  /**
-   * Get the current user's followed artists.
-   * See [Get User's Followed Artists](https://developer.spotify.com/web-api/get-followed-artists/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Object} [options] Options, being after and limit.
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is an object with a paged object containing
-   * artists.
-   * @returns {Promise|undefined} A promise that if successful, resolves to an object containing a paging object which contains
-   * artists objects. Not returned if a callback is given.
-   */
-  Constr.prototype.getFollowedArtists = function (options, callback) {
-    var requestData = {
-      url: _baseUri + '/me/following',
-      type: 'GET',
-      params: {
-        type: 'artist'
-      }
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Fetches information about a specific user.
-   * See [Get a User's Profile](https://developer.spotify.com/web-api/get-users-profile/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} userId The id of the user. If you know the Spotify URI it is easy
-   * to find the id (e.g. spotify:user:<here_is_the_id>)
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getUser = function (userId, options, callback) {
-    var requestData = {
-      url: _baseUri + '/users/' + encodeURIComponent(userId)
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Fetches a list of the current user's playlists.
-   * See [Get a List of a User's Playlists](https://developer.spotify.com/web-api/get-list-users-playlists/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} userId An optional id of the user. If you know the Spotify URI it is easy
-   * to find the id (e.g. spotify:user:<here_is_the_id>). If not provided, the id of the user that granted
-   * the permissions will be used.
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getUserPlaylists = function (userId, options, callback) {
-    var requestData;
-    if (typeof userId === 'string') {
-      requestData = {
-        url: _baseUri + '/users/' + encodeURIComponent(userId) + '/playlists'
-      };
-    } else {
-      requestData = {
-        url: _baseUri + '/me/playlists'
-      };
-      callback = options;
-      options = userId;
-    }
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Fetches a specific playlist.
-   * See [Get a Playlist](https://developer.spotify.com/web-api/get-playlist/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} playlistId The id of the playlist. If you know the Spotify URI it is easy
-   * to find the playlist id (e.g. spotify:user:xxxx:playlist:<here_is_the_playlist_id>)
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getPlaylist = function (playlistId, options, callback) {
-    var requestData = {
-      url: _baseUri + '/playlists/' + playlistId
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Fetches the tracks from a specific playlist.
-   * See [Get a Playlist's Tracks](https://developer.spotify.com/web-api/get-playlists-tracks/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} playlistId The id of the playlist. If you know the Spotify URI it is easy
-   * to find the playlist id (e.g. spotify:user:xxxx:playlist:<here_is_the_playlist_id>)
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getPlaylistTracks = function (
-    playlistId,
-    options,
-    callback
-  ) {
-    var requestData = {
-      url: _baseUri + '/playlists/' + playlistId + '/tracks'
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Gets the current image associated with a specific playlist.
-   * See [Get a Playlist Cover Image](https://developer.spotify.com/documentation/web-api/reference/playlists/get-playlist-cover/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} playlistId The id of the playlist. If you know the Spotify URI it is easy
-   * to find the playlist id (e.g. spotify:playlist:<here_is_the_playlist_id>)
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getPlaylistCoverImage = function (playlistId, callback) {
-    var requestData = {
-      url: _baseUri + '/playlists/' + playlistId + '/images'
-    };
-    return _checkParamsAndPerformRequest(requestData, callback);
-  };
-
-  /**
-   * Creates a playlist and stores it in the current user's library.
-   * See [Create a Playlist](https://developer.spotify.com/web-api/create-playlist/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} userId The id of the user. If you know the Spotify URI it is easy
-   * to find the id (e.g. spotify:user:<here_is_the_id>)
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.createPlaylist = function (userId, options, callback) {
-    var requestData = {
-      url: _baseUri + '/users/' + encodeURIComponent(userId) + '/playlists',
-      type: 'POST',
-      postData: options
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Change a playlist's name and public/private state
-   * See [Change a Playlist's Details](https://developer.spotify.com/web-api/change-playlist-details/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} playlistId The id of the playlist. If you know the Spotify URI it is easy
-   * to find the playlist id (e.g. spotify:user:xxxx:playlist:<here_is_the_playlist_id>)
-   * @param {Object} data A JSON object with the data to update. E.g. {name: 'A new name', public: true}
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.changePlaylistDetails = function (
-    playlistId,
-    data,
-    callback
-  ) {
-    var requestData = {
-      url: _baseUri + '/playlists/' + playlistId,
-      type: 'PUT',
-      postData: data
-    };
-    return _checkParamsAndPerformRequest(requestData, data, callback);
-  };
-
-  /**
-   * Add tracks to a playlist.
-   * See [Add Tracks to a Playlist](https://developer.spotify.com/web-api/add-tracks-to-playlist/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} playlistId The id of the playlist. If you know the Spotify URI it is easy
-   * to find the playlist id (e.g. spotify:user:xxxx:playlist:<here_is_the_playlist_id>)
-   * @param {Array<string>} uris An array of Spotify URIs for the tracks
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.addTracksToPlaylist = function (
-    playlistId,
-    uris,
-    options,
-    callback
-  ) {
-    var requestData = {
-      url: _baseUri + '/playlists/' + playlistId + '/tracks',
-      type: 'POST',
-      postData: {
-        uris: uris
-      }
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback, true);
-  };
-
-  /**
-   * Replace the tracks of a playlist
-   * See [Replace a Playlist's Tracks](https://developer.spotify.com/web-api/replace-playlists-tracks/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} playlistId The id of the playlist. If you know the Spotify URI it is easy
-   * to find the playlist id (e.g. spotify:user:xxxx:playlist:<here_is_the_playlist_id>)
-   * @param {Array<string>} uris An array of Spotify URIs for the tracks
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.replaceTracksInPlaylist = function (
-    playlistId,
-    uris,
-    callback
-  ) {
-    var requestData = {
-      url: _baseUri + '/playlists/' + playlistId + '/tracks',
-      type: 'PUT',
-      postData: { uris: uris }
-    };
-    return _checkParamsAndPerformRequest(requestData, {}, callback);
-  };
-
-  /**
-   * Reorder tracks in a playlist
-   * See [Reorder a Playlist’s Tracks](https://developer.spotify.com/web-api/reorder-playlists-tracks/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} playlistId The id of the playlist. If you know the Spotify URI it is easy
-   * to find the playlist id (e.g. spotify:user:xxxx:playlist:<here_is_the_playlist_id>)
-   * @param {number} rangeStart The position of the first track to be reordered.
-   * @param {number} insertBefore The position where the tracks should be inserted. To reorder the tracks to
-   * the end of the playlist, simply set insert_before to the position after the last track.
-   * @param {Object} options An object with optional parameters (range_length, snapshot_id)
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.reorderTracksInPlaylist = function (
-    playlistId,
-    rangeStart,
-    insertBefore,
-    options,
-    callback
-  ) {
-    /* eslint-disable camelcase */
-    var requestData = {
-      url: _baseUri + '/playlists/' + playlistId + '/tracks',
-      type: 'PUT',
-      postData: {
-        range_start: rangeStart,
-        insert_before: insertBefore
-      }
-    };
-    /* eslint-enable camelcase */
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Remove tracks from a playlist
-   * See [Remove Tracks from a Playlist](https://developer.spotify.com/web-api/remove-tracks-playlist/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} playlistId The id of the playlist. If you know the Spotify URI it is easy
-   * to find the playlist id (e.g. spotify:user:xxxx:playlist:<here_is_the_playlist_id>)
-   * @param {Array<Object>} uris An array of tracks to be removed. Each element of the array can be either a
-   * string, in which case it is treated as a URI, or an object containing the properties `uri` (which is a
-   * string) and `positions` (which is an array of integers).
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.removeTracksFromPlaylist = function (
-    playlistId,
-    uris,
-    callback
-  ) {
-    var dataToBeSent = uris.map(function (uri) {
-      if (typeof uri === 'string') {
-        return { uri: uri };
-      } else {
-        return uri;
-      }
-    });
-
-    var requestData = {
-      url: _baseUri + '/playlists/' + playlistId + '/tracks',
-      type: 'DELETE',
-      postData: { tracks: dataToBeSent }
-    };
-    return _checkParamsAndPerformRequest(requestData, {}, callback);
-  };
-
-  /**
-   * Remove tracks from a playlist, specifying a snapshot id.
-   * See [Remove Tracks from a Playlist](https://developer.spotify.com/web-api/remove-tracks-playlist/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} playlistId The id of the playlist. If you know the Spotify URI it is easy
-   * to find the playlist id (e.g. spotify:user:xxxx:playlist:<here_is_the_playlist_id>)
-   * @param {Array<Object>} uris An array of tracks to be removed. Each element of the array can be either a
-   * string, in which case it is treated as a URI, or an object containing the properties `uri` (which is a
-   * string) and `positions` (which is an array of integers).
-   * @param {string} snapshotId The playlist's snapshot ID against which you want to make the changes
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.removeTracksFromPlaylistWithSnapshotId = function (
-    playlistId,
-    uris,
-    snapshotId,
-    callback
-  ) {
-    var dataToBeSent = uris.map(function (uri) {
-      if (typeof uri === 'string') {
-        return { uri: uri };
-      } else {
-        return uri;
-      }
-    });
-    /* eslint-disable camelcase */
-    var requestData = {
-      url: _baseUri + '/playlists/' + playlistId + '/tracks',
-      type: 'DELETE',
-      postData: {
-        tracks: dataToBeSent,
-        snapshot_id: snapshotId
-      }
-    };
-    /* eslint-enable camelcase */
-    return _checkParamsAndPerformRequest(requestData, {}, callback);
-  };
-
-  /**
-   * Remove tracks from a playlist, specifying the positions of the tracks to be removed.
-   * See [Remove Tracks from a Playlist](https://developer.spotify.com/web-api/remove-tracks-playlist/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} playlistId The id of the playlist. If you know the Spotify URI it is easy
-   * to find the playlist id (e.g. spotify:user:xxxx:playlist:<here_is_the_playlist_id>)
-   * @param {Array<number>} positions array of integers containing the positions of the tracks to remove
-   * from the playlist.
-   * @param {string} snapshotId The playlist's snapshot ID against which you want to make the changes
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.removeTracksFromPlaylistInPositions = function (
-    playlistId,
-    positions,
-    snapshotId,
-    callback
-  ) {
-    /* eslint-disable camelcase */
-    var requestData = {
-      url: _baseUri + '/playlists/' + playlistId + '/tracks',
-      type: 'DELETE',
-      postData: {
-        positions: positions,
-        snapshot_id: snapshotId
-      }
-    };
-    /* eslint-enable camelcase */
-    return _checkParamsAndPerformRequest(requestData, {}, callback);
-  };
-
-  /**
-   * Upload a custom playlist cover image.
-   * See [Upload A Custom Playlist Cover Image](https://developer.spotify.com/web-api/upload-a-custom-playlist-cover-image/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} playlistId The id of the playlist. If you know the Spotify URI it is easy
-   * to find the playlist id (e.g. spotify:user:xxxx:playlist:<here_is_the_playlist_id>)
-   * @param {string} imageData Base64 encoded JPEG image data, maximum payload size is 256 KB.
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.uploadCustomPlaylistCoverImage = function (
-    playlistId,
-    imageData,
-    callback
-  ) {
-    var requestData = {
-      url: _baseUri + '/playlists/' + playlistId + '/images',
-      type: 'PUT',
-      postData: imageData.replace(/^data:image\/jpeg;base64,/, ''),
-      contentType: 'image/jpeg'
-    };
-    return _checkParamsAndPerformRequest(requestData, {}, callback);
-  };
-
-  /**
-   * Fetches an album from the Spotify catalog.
-   * See [Get an Album](https://developer.spotify.com/web-api/get-album/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} albumId The id of the album. If you know the Spotify URI it is easy
-   * to find the album id (e.g. spotify:album:<here_is_the_album_id>)
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getAlbum = function (albumId, options, callback) {
-    var requestData = {
-      url: _baseUri + '/albums/' + albumId
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Fetches the tracks of an album from the Spotify catalog.
-   * See [Get an Album's Tracks](https://developer.spotify.com/web-api/get-albums-tracks/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} albumId The id of the album. If you know the Spotify URI it is easy
-   * to find the album id (e.g. spotify:album:<here_is_the_album_id>)
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getAlbumTracks = function (albumId, options, callback) {
-    var requestData = {
-      url: _baseUri + '/albums/' + albumId + '/tracks'
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Fetches multiple albums from the Spotify catalog.
-   * See [Get Several Albums](https://developer.spotify.com/web-api/get-several-albums/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Array<string>} albumIds The ids of the albums. If you know their Spotify URI it is easy
-   * to find their album id (e.g. spotify:album:<here_is_the_album_id>)
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getAlbums = function (albumIds, options, callback) {
-    var requestData = {
-      url: _baseUri + '/albums/',
-      params: { ids: albumIds.join(',') }
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Fetches a track from the Spotify catalog.
-   * See [Get a Track](https://developer.spotify.com/web-api/get-track/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} trackId The id of the track. If you know the Spotify URI it is easy
-   * to find the track id (e.g. spotify:track:<here_is_the_track_id>)
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getTrack = function (trackId, options, callback) {
-    var requestData = {};
-    requestData.url = _baseUri + '/tracks/' + trackId;
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Fetches multiple tracks from the Spotify catalog.
-   * See [Get Several Tracks](https://developer.spotify.com/web-api/get-several-tracks/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Array<string>} trackIds The ids of the tracks. If you know their Spotify URI it is easy
-   * to find their track id (e.g. spotify:track:<here_is_the_track_id>)
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getTracks = function (trackIds, options, callback) {
-    var requestData = {
-      url: _baseUri + '/tracks/',
-      params: { ids: trackIds.join(',') }
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Fetches an artist from the Spotify catalog.
-   * See [Get an Artist](https://developer.spotify.com/web-api/get-artist/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} artistId The id of the artist. If you know the Spotify URI it is easy
-   * to find the artist id (e.g. spotify:artist:<here_is_the_artist_id>)
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getArtist = function (artistId, options, callback) {
-    var requestData = {
-      url: _baseUri + '/artists/' + artistId
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Fetches multiple artists from the Spotify catalog.
-   * See [Get Several Artists](https://developer.spotify.com/web-api/get-several-artists/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Array<string>} artistIds The ids of the artists. If you know their Spotify URI it is easy
-   * to find their artist id (e.g. spotify:artist:<here_is_the_artist_id>)
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getArtists = function (artistIds, options, callback) {
-    var requestData = {
-      url: _baseUri + '/artists/',
-      params: { ids: artistIds.join(',') }
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Fetches the albums of an artist from the Spotify catalog.
-   * See [Get an Artist's Albums](https://developer.spotify.com/web-api/get-artists-albums/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} artistId The id of the artist. If you know the Spotify URI it is easy
-   * to find the artist id (e.g. spotify:artist:<here_is_the_artist_id>)
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getArtistAlbums = function (artistId, options, callback) {
-    var requestData = {
-      url: _baseUri + '/artists/' + artistId + '/albums'
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Fetches a list of top tracks of an artist from the Spotify catalog, for a specific country.
-   * See [Get an Artist's Top Tracks](https://developer.spotify.com/web-api/get-artists-top-tracks/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} artistId The id of the artist. If you know the Spotify URI it is easy
-   * to find the artist id (e.g. spotify:artist:<here_is_the_artist_id>)
-   * @param {string} countryId The id of the country (e.g. ES for Spain or US for United States)
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getArtistTopTracks = function (
-    artistId,
-    countryId,
-    options,
-    callback
-  ) {
-    var requestData = {
-      url: _baseUri + '/artists/' + artistId + '/top-tracks',
-      params: { country: countryId }
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Fetches a list of artists related with a given one from the Spotify catalog.
-   * See [Get an Artist's Related Artists](https://developer.spotify.com/web-api/get-related-artists/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} artistId The id of the artist. If you know the Spotify URI it is easy
-   * to find the artist id (e.g. spotify:artist:<here_is_the_artist_id>)
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getArtistRelatedArtists = function (
-    artistId,
-    options,
-    callback
-  ) {
-    var requestData = {
-      url: _baseUri + '/artists/' + artistId + '/related-artists'
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Fetches a list of Spotify featured playlists (shown, for example, on a Spotify player's "Browse" tab).
-   * See [Get a List of Featured Playlists](https://developer.spotify.com/web-api/get-list-featured-playlists/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getFeaturedPlaylists = function (options, callback) {
-    var requestData = {
-      url: _baseUri + '/browse/featured-playlists'
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Fetches a list of new album releases featured in Spotify (shown, for example, on a Spotify player's "Browse" tab).
-   * See [Get a List of New Releases](https://developer.spotify.com/web-api/get-list-new-releases/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getNewReleases = function (options, callback) {
-    var requestData = {
-      url: _baseUri + '/browse/new-releases'
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Get a list of categories used to tag items in Spotify (on, for example, the Spotify player's "Browse" tab).
-   * See [Get a List of Categories](https://developer.spotify.com/web-api/get-list-categories/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getCategories = function (options, callback) {
-    var requestData = {
-      url: _baseUri + '/browse/categories'
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Get a single category used to tag items in Spotify (on, for example, the Spotify player's "Browse" tab).
-   * See [Get a Category](https://developer.spotify.com/web-api/get-category/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} categoryId The id of the category. These can be found with the getCategories function
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getCategory = function (categoryId, options, callback) {
-    var requestData = {
-      url: _baseUri + '/browse/categories/' + categoryId
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Get a list of Spotify playlists tagged with a particular category.
-   * See [Get a Category's Playlists](https://developer.spotify.com/web-api/get-categorys-playlists/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} categoryId The id of the category. These can be found with the getCategories function
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getCategoryPlaylists = function (
-    categoryId,
-    options,
-    callback
-  ) {
-    var requestData = {
-      url: _baseUri + '/browse/categories/' + categoryId + '/playlists'
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Get Spotify catalog information about artists, albums, tracks or playlists that match a keyword string.
-   * See [Search for an Item](https://developer.spotify.com/web-api/search-item/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} query The search query
-   * @param {Array<string>} types An array of item types to search across.
-   * Valid types are: 'album', 'artist', 'playlist', and 'track'.
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.search = function (query, types, options, callback) {
-    var requestData = {
-      url: _baseUri + '/search/',
-      params: {
-        q: query,
-        type: types.join(',')
-      }
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Fetches albums from the Spotify catalog according to a query.
-   * See [Search for an Item](https://developer.spotify.com/web-api/search-item/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} query The search query
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.searchAlbums = function (query, options, callback) {
-    return this.search(query, ['album'], options, callback);
-  };
-
-  /**
-   * Fetches artists from the Spotify catalog according to a query.
-   * See [Search for an Item](https://developer.spotify.com/web-api/search-item/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} query The search query
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.searchArtists = function (query, options, callback) {
-    return this.search(query, ['artist'], options, callback);
-  };
-
-  /**
-   * Fetches tracks from the Spotify catalog according to a query.
-   * See [Search for an Item](https://developer.spotify.com/web-api/search-item/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} query The search query
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.searchTracks = function (query, options, callback) {
-    return this.search(query, ['track'], options, callback);
-  };
-
-  /**
-   * Fetches playlists from the Spotify catalog according to a query.
-   * See [Search for an Item](https://developer.spotify.com/web-api/search-item/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} query The search query
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.searchPlaylists = function (query, options, callback) {
-    return this.search(query, ['playlist'], options, callback);
-  };
-
-  /**
-   * Fetches shows from the Spotify catalog according to a query.
-   * See [Search for an Item](https://developer.spotify.com/web-api/search-item/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} query The search query
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.searchShows = function (query, options, callback) {
-    return this.search(query, ['show'], options, callback);
-  };
-
-  /**
-   * Fetches episodes from the Spotify catalog according to a query.
-   * See [Search for an Item](https://developer.spotify.com/web-api/search-item/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} query The search query
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.searchEpisodes = function (query, options, callback) {
-    return this.search(query, ['episode'], options, callback);
-  };
-
-  /**
-   * Get audio features for a single track identified by its unique Spotify ID.
-   * See [Get Audio Features for a Track](https://developer.spotify.com/web-api/get-audio-features/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} trackId The id of the track. If you know the Spotify URI it is easy
-   * to find the track id (e.g. spotify:track:<here_is_the_track_id>)
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getAudioFeaturesForTrack = function (trackId, callback) {
-    var requestData = {};
-    requestData.url = _baseUri + '/audio-features/' + trackId;
-    return _checkParamsAndPerformRequest(requestData, {}, callback);
-  };
-
-  /**
-   * Get audio features for multiple tracks based on their Spotify IDs.
-   * See [Get Audio Features for Several Tracks](https://developer.spotify.com/web-api/get-several-audio-features/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Array<string>} trackIds The ids of the tracks. If you know their Spotify URI it is easy
-   * to find their track id (e.g. spotify:track:<here_is_the_track_id>)
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getAudioFeaturesForTracks = function (trackIds, callback) {
-    var requestData = {
-      url: _baseUri + '/audio-features',
-      params: { ids: trackIds }
-    };
-    return _checkParamsAndPerformRequest(requestData, {}, callback);
-  };
-
-  /**
-   * Get audio analysis for a single track identified by its unique Spotify ID.
-   * See [Get Audio Analysis for a Track](https://developer.spotify.com/web-api/get-audio-analysis/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} trackId The id of the track. If you know the Spotify URI it is easy
-   * to find the track id (e.g. spotify:track:<here_is_the_track_id>)
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getAudioAnalysisForTrack = function (trackId, callback) {
-    var requestData = {};
-    requestData.url = _baseUri + '/audio-analysis/' + trackId;
-    return _checkParamsAndPerformRequest(requestData, {}, callback);
-  };
-
-  /**
-   * Create a playlist-style listening experience based on seed artists, tracks and genres.
-   * See [Get Recommendations Based on Seeds](https://developer.spotify.com/web-api/get-recommendations/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getRecommendations = function (options, callback) {
-    var requestData = {
-      url: _baseUri + '/recommendations'
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Retrieve a list of available genres seed parameter values for recommendations.
-   * See [Available Genre Seeds](https://developer.spotify.com/web-api/get-recommendations/#available-genre-seeds) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getAvailableGenreSeeds = function (callback) {
-    var requestData = {
-      url: _baseUri + '/recommendations/available-genre-seeds'
-    };
-    return _checkParamsAndPerformRequest(requestData, {}, callback);
-  };
-
-  /**
-   * Get information about a user’s available devices.
-   * See [Get a User’s Available Devices](https://developer.spotify.com/web-api/get-a-users-available-devices/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getMyDevices = function (callback) {
-    var requestData = {
-      url: _baseUri + '/me/player/devices'
-    };
-    return _checkParamsAndPerformRequest(requestData, {}, callback);
-  };
-
-  /**
-   * Get information about the user’s current playback state, including track, track progress, and active device.
-   * See [Get Information About The User’s Current Playback](https://developer.spotify.com/web-api/get-information-about-the-users-current-playback/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Object} options A JSON object with options that can be passed.
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getMyCurrentPlaybackState = function (options, callback) {
-    var requestData = {
-      url: _baseUri + '/me/player'
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Get the object currently being played on the user’s Spotify account.
-   * See [Get the User’s Currently Playing Track](https://developer.spotify.com/web-api/get-the-users-currently-playing-track/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Object} options A JSON object with options that can be passed.
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getMyCurrentPlayingTrack = function (options, callback) {
-    var requestData = {
-      url: _baseUri + '/me/player/currently-playing'
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Transfer playback to a new device and determine if it should start playing.
-   * See [Transfer a User’s Playback](https://developer.spotify.com/web-api/transfer-a-users-playback/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Array<string>} deviceIds A JSON array containing the ID of the device on which playback should be started/transferred.
-   * @param {Object} options A JSON object with options that can be passed.
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.transferMyPlayback = function (
-    deviceIds,
-    options,
-    callback
-  ) {
-    var postData = options || {};
-    postData.device_ids = deviceIds;
-    var requestData = {
-      type: 'PUT',
-      url: _baseUri + '/me/player',
-      postData: postData
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Play a track on the user's active device
-   * See [Start/Resume a User's Playback](https://developer.spotify.com/documentation/web-api/reference/player/start-a-users-playback/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Object} options A JSON object with options that can be passed.
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.play = function (options, callback) {
-    options = options || {};
-    var params =
-      'device_id' in options ? { device_id: options.device_id } : null;
-    var postData = {};
-    ['context_uri', 'uris', 'offset', 'position_ms'].forEach(function (field) {
-      if (field in options) {
-        postData[field] = options[field];
-      }
-    });
-    var requestData = {
-      type: 'PUT',
-      url: _baseUri + '/me/player/play',
-      params: params,
-      postData: postData
-    };
-
-    // need to clear options so it doesn't add all of them to the query params
-    var newOptions = typeof options === 'function' ? options : {};
-    return _checkParamsAndPerformRequest(requestData, newOptions, callback);
-  };
-
-  /**
-   * Add an item to the end of the user’s current playback queue.
-   * See [Add an Item to the User's Playback Queue](https://developer.spotify.com/documentation/web-api/reference/player/add-to-queue/) on
-   * the Spotify Developer site for more information about the endpoint.
-   * @param {string} uri The uri of the item to add to the queue. Must be a track or an episode uri.
-   * @param {Object} options A JSON object with options that can be passed.
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.queue = function (uri, options, callback) {
-    options = options || {};
-    var params =
-      'device_id' in options
-        ? { uri: uri, device_id: options.device_id }
-        : { uri: uri };
-    var requestData = {
-      type: 'POST',
-      url: _baseUri + '/me/player/queue',
-      params: params
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Pause playback on the user’s account.
-   * See [Pause a User’s Playback](https://developer.spotify.com/web-api/pause-a-users-playback/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Object} options A JSON object with options that can be passed.
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.pause = function (options, callback) {
-    options = options || {};
-    var params =
-      'device_id' in options ? { device_id: options.device_id } : null;
-    var requestData = {
-      type: 'PUT',
-      url: _baseUri + '/me/player/pause',
-      params: params
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Skips to next track in the user’s queue.
-   * See [Skip User’s Playback To Next Track](https://developer.spotify.com/web-api/skip-users-playback-to-next-track/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Object} options A JSON object with options that can be passed.
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.skipToNext = function (options, callback) {
-    options = options || {};
-    var params =
-      'device_id' in options ? { device_id: options.device_id } : null;
-    var requestData = {
-      type: 'POST',
-      url: _baseUri + '/me/player/next',
-      params: params
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Skips to previous track in the user’s queue.
-   * Note that this will ALWAYS skip to the previous track, regardless of the current track’s progress.
-   * Returning to the start of the current track should be performed using `.seek()`
-   * See [Skip User’s Playback To Previous Track](https://developer.spotify.com/web-api/skip-users-playback-to-next-track/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Object} options A JSON object with options that can be passed.
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.skipToPrevious = function (options, callback) {
-    options = options || {};
-    var params =
-      'device_id' in options ? { device_id: options.device_id } : null;
-    var requestData = {
-      type: 'POST',
-      url: _baseUri + '/me/player/previous',
-      params: params
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Seeks to the given position in the user’s currently playing track.
-   * See [Seek To Position In Currently Playing Track](https://developer.spotify.com/web-api/seek-to-position-in-currently-playing-track/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {number} position_ms The position in milliseconds to seek to. Must be a positive number.
-   * @param {Object} options A JSON object with options that can be passed.
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.seek = function (position_ms, options, callback) {
-    options = options || {};
-    var params = {
-      position_ms: position_ms
-    };
-    if ('device_id' in options) {
-      params.device_id = options.device_id;
-    }
-    var requestData = {
-      type: 'PUT',
-      url: _baseUri + '/me/player/seek',
-      params: params
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Set the repeat mode for the user’s playback. Options are repeat-track, repeat-context, and off.
-   * See [Set Repeat Mode On User’s Playback](https://developer.spotify.com/web-api/set-repeat-mode-on-users-playback/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {String} state A string set to 'track', 'context' or 'off'.
-   * @param {Object} options A JSON object with options that can be passed.
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.setRepeat = function (state, options, callback) {
-    options = options || {};
-    var params = {
-      state: state
-    };
-    if ('device_id' in options) {
-      params.device_id = options.device_id;
-    }
-    var requestData = {
-      type: 'PUT',
-      url: _baseUri + '/me/player/repeat',
-      params: params
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Set the volume for the user’s current playback device.
-   * See [Set Volume For User’s Playback](https://developer.spotify.com/web-api/set-volume-for-users-playback/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {number} volume_percent The volume to set. Must be a value from 0 to 100 inclusive.
-   * @param {Object} options A JSON object with options that can be passed.
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.setVolume = function (volume_percent, options, callback) {
-    options = options || {};
-    var params = {
-      volume_percent: volume_percent
-    };
-    if ('device_id' in options) {
-      params.device_id = options.device_id;
-    }
-    var requestData = {
-      type: 'PUT',
-      url: _baseUri + '/me/player/volume',
-      params: params
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Toggle shuffle on or off for user’s playback.
-   * See [Toggle Shuffle For User’s Playback](https://developer.spotify.com/web-api/toggle-shuffle-for-users-playback/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {bool} state Whether or not to shuffle user's playback.
-   * @param {Object} options A JSON object with options that can be passed.
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.setShuffle = function (state, options, callback) {
-    options = options || {};
-    var params = {
-      state: state
-    };
-    if ('device_id' in options) {
-      params.device_id = options.device_id;
-    }
-    var requestData = {
-      type: 'PUT',
-      url: _baseUri + '/me/player/shuffle',
-      params: params
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Fetches a show from the Spotify catalog.
-   * See [Get a Show](https://developer.spotify.com/documentation/web-api/reference/shows/get-a-show/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} showId The id of the show. If you know the Spotify URI it is easy
-   * to find the show id (e.g. spotify:show:<here_is_the_show_id>)
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getShow = function (showId, options, callback) {
-    var requestData = {};
-    requestData.url = _baseUri + '/shows/' + showId;
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Fetches multiple shows from the Spotify catalog.
-   * See [Get Several Shows](https://developer.spotify.com/documentation/web-api/reference/shows/get-several-shows/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Array<string>} showIds The ids of the shows. If you know their Spotify URI it is easy
-   * to find their show id (e.g. spotify:show:<here_is_the_show_id>)
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getShows = function (showIds, options, callback) {
-    var requestData = {
-      url: _baseUri + '/shows/',
-      params: { ids: showIds.join(',') }
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Fetches current user's saved shows.
-   * See [Get Current User's Saved Shows](https://developer.spotify.com/documentation/web-api/reference/library/get-users-saved-shows/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getMySavedShows = function (options, callback) {
-    var requestData = {
-      url: _baseUri + '/me/shows'
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Adds a list of shows to the current user's saved shows.
-   * See [Save Shows for Current User](https://developer.spotify.com/documentation/web-api/reference/library/save-shows-user/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Array<string>} showIds The ids of the shows. If you know their Spotify URI it is easy
-   * to find their show id (e.g. spotify:show:<here_is_the_show_id>)
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.addToMySavedShows = function (showIds, options, callback) {
-    var requestData = {
-      url: _baseUri + '/me/shows',
-      type: 'PUT',
-      postData: showIds
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Remove a list of shows from the current user's saved shows.
-   * See [Remove Shows for Current User](https://developer.spotify.com/documentation/web-api/reference/library/remove-shows-user/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Array<string>} showIds The ids of the shows. If you know their Spotify URI it is easy
-   * to find their show id (e.g. spotify:show:<here_is_the_show_id>)
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.removeFromMySavedShows = function (
-    showIds,
-    options,
-    callback
-  ) {
-    var requestData = {
-      url: _baseUri + '/me/shows',
-      type: 'DELETE',
-      postData: showIds
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Checks if the current user's saved shows contains a certain list of shows.
-   * See [Check Current User's Saved Shows](https://developer.spotify.com/documentation/web-api/reference/library/check-users-saved-shows/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Array<string>} showIds The ids of the shows. If you know their Spotify URI it is easy
-   * to find their show id (e.g. spotify:show:<here_is_the_show_id>)
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.containsMySavedShows = function (
-    showIds,
-    options,
-    callback
-  ) {
-    var requestData = {
-      url: _baseUri + '/me/shows/contains',
-      params: { ids: showIds.join(',') }
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Fetches the episodes of a show from the Spotify catalog.
-   * See [Get a Show's Episodes](https://developer.spotify.com/documentation/web-api/reference/shows/get-shows-episodes/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} showId The id of the show. If you know the Spotify URI it is easy
-   * to find the show id (e.g. spotify:show:<here_is_the_show_id>)
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getShowEpisodes = function (showId, options, callback) {
-    var requestData = {
-      url: _baseUri + '/shows/' + showId + '/episodes'
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Fetches an episode from the Spotify catalog.
-   * See [Get an Episode](https://developer.spotify.com/documentation/web-api/reference/episodes/get-an-episode/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {string} episodeId The id of the episode. If you know the Spotify URI it is easy
-   * to find the episode id (e.g. spotify:episode:<here_is_the_episode_id>)
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getEpisode = function (episodeId, options, callback) {
-    var requestData = {};
-    requestData.url = _baseUri + '/episodes/' + episodeId;
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Fetches multiple episodes from the Spotify catalog.
-   * See [Get Several Episodes](https://developer.spotify.com/documentation/web-api/reference/episodes/get-several-episodes/) on
-   * the Spotify Developer site for more information about the endpoint.
-   *
-   * @param {Array<string>} episodeIds The ids of the episodes. If you know their Spotify URI it is easy
-   * to find their episode id (e.g. spotify:episode:<here_is_the_episode_id>)
-   * @param {Object} options A JSON object with options that can be passed
-   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
-   * one is the error object (null if no error), and the second is the value if the request succeeded.
-   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
-   */
-  Constr.prototype.getEpisodes = function (episodeIds, options, callback) {
-    var requestData = {
-      url: _baseUri + '/episodes/',
-      params: { ids: episodeIds.join(',') }
-    };
-    return _checkParamsAndPerformRequest(requestData, options, callback);
-  };
-
-  /**
-   * Gets the access token in use.
-   *
-   * @return {string} accessToken The access token
-   */
-  Constr.prototype.getAccessToken = function () {
-    return _accessToken;
-  };
-
-  /**
-   * Sets the access token to be used.
-   * See [the Authorization Guide](https://developer.spotify.com/web-api/authorization-guide/) on
-   * the Spotify Developer site for more information about obtaining an access token.
-   *
-   * @param {string} accessToken The access token
-   * @return {void}
-   */
-  Constr.prototype.setAccessToken = function (accessToken) {
-    _accessToken = accessToken;
-  };
-
-  /**
-   * Sets an implementation of Promises/A+ to be used. E.g. Q, when.
-   * See [Conformant Implementations](https://github.com/promises-aplus/promises-spec/blob/master/implementations.md)
-   * for a list of some available options
-   *
-   * @param {Object} PromiseImplementation A Promises/A+ valid implementation
-   * @throws {Error} If the implementation being set doesn't conform with Promises/A+
-   * @return {void}
-   */
-  Constr.prototype.setPromiseImplementation = function (PromiseImplementation) {
-    var valid = false;
-    try {
-      var p = new PromiseImplementation(function (resolve) {
-        resolve();
-      });
-      if (typeof p.then === 'function' && typeof p.catch === 'function') {
-        valid = true;
-      }
-    } catch (e) {
-      console.error(e);
-    }
-    if (valid) {
-      _promiseImplementation = PromiseImplementation;
-    } else {
-      throw new Error('Unsupported implementation of Promises/A+');
-    }
-  };
-
-  return Constr;
-})();
-
-if (typeof module === 'object' && typeof module.exports === 'object') {
-  module.exports = SpotifyWebApi;
-}
-},{}],259:[function(require,module,exports){
 'use strict';
 
 var compileSchema = require('./compile')
@@ -42269,7 +40091,7 @@ function setLogger(self) {
 
 function noop() {}
 
-},{"./cache":260,"./compile":264,"./compile/async":261,"./compile/error_classes":262,"./compile/formats":263,"./compile/resolve":265,"./compile/rules":266,"./compile/schema_obj":267,"./compile/util":269,"./data":270,"./keyword":298,"./refs/data.json":299,"./refs/json-schema-draft-07.json":301,"fast-json-stable-stringify":323}],260:[function(require,module,exports){
+},{"./cache":258,"./compile":262,"./compile/async":259,"./compile/error_classes":260,"./compile/formats":261,"./compile/resolve":263,"./compile/rules":264,"./compile/schema_obj":265,"./compile/util":267,"./data":268,"./keyword":296,"./refs/data.json":297,"./refs/json-schema-draft-07.json":299,"fast-json-stable-stringify":320}],258:[function(require,module,exports){
 'use strict';
 
 
@@ -42297,7 +40119,7 @@ Cache.prototype.clear = function Cache_clear() {
   this._cache = {};
 };
 
-},{}],261:[function(require,module,exports){
+},{}],259:[function(require,module,exports){
 'use strict';
 
 var MissingRefError = require('./error_classes').MissingRef;
@@ -42389,7 +40211,7 @@ function compileAsync(schema, meta, callback) {
   }
 }
 
-},{"./error_classes":262}],262:[function(require,module,exports){
+},{"./error_classes":260}],260:[function(require,module,exports){
 'use strict';
 
 var resolve = require('./resolve');
@@ -42425,7 +40247,7 @@ function errorSubclass(Subclass) {
   return Subclass;
 }
 
-},{"./resolve":265}],263:[function(require,module,exports){
+},{"./resolve":263}],261:[function(require,module,exports){
 'use strict';
 
 var util = require('./util');
@@ -42569,7 +40391,7 @@ function regex(str) {
   }
 }
 
-},{"./util":269}],264:[function(require,module,exports){
+},{"./util":267}],262:[function(require,module,exports){
 'use strict';
 
 var resolve = require('./resolve')
@@ -42958,7 +40780,7 @@ function vars(arr, statement) {
   return code;
 }
 
-},{"../dotjs/validate":297,"./error_classes":262,"./resolve":265,"./util":269,"fast-deep-equal":322,"fast-json-stable-stringify":323}],265:[function(require,module,exports){
+},{"../dotjs/validate":295,"./error_classes":260,"./resolve":263,"./util":267,"fast-deep-equal":319,"fast-json-stable-stringify":320}],263:[function(require,module,exports){
 'use strict';
 
 var URI = require('uri-js')
@@ -43230,7 +41052,7 @@ function resolveIds(schema) {
   return localRefs;
 }
 
-},{"./schema_obj":267,"./util":269,"fast-deep-equal":322,"json-schema-traverse":355,"uri-js":420}],266:[function(require,module,exports){
+},{"./schema_obj":265,"./util":267,"fast-deep-equal":319,"json-schema-traverse":352,"uri-js":417}],264:[function(require,module,exports){
 'use strict';
 
 var ruleModules = require('../dotjs')
@@ -43298,7 +41120,7 @@ module.exports = function rules() {
   return RULES;
 };
 
-},{"../dotjs":286,"./util":269}],267:[function(require,module,exports){
+},{"../dotjs":284,"./util":267}],265:[function(require,module,exports){
 'use strict';
 
 var util = require('./util');
@@ -43309,7 +41131,7 @@ function SchemaObject(obj) {
   util.copy(obj, this);
 }
 
-},{"./util":269}],268:[function(require,module,exports){
+},{"./util":267}],266:[function(require,module,exports){
 'use strict';
 
 // https://mathiasbynens.be/notes/javascript-encoding
@@ -43331,7 +41153,7 @@ module.exports = function ucs2length(str) {
   return length;
 };
 
-},{}],269:[function(require,module,exports){
+},{}],267:[function(require,module,exports){
 'use strict';
 
 
@@ -43572,7 +41394,7 @@ function unescapeJsonPointer(str) {
   return str.replace(/~1/g, '/').replace(/~0/g, '~');
 }
 
-},{"./ucs2length":268,"fast-deep-equal":322}],270:[function(require,module,exports){
+},{"./ucs2length":266,"fast-deep-equal":319}],268:[function(require,module,exports){
 'use strict';
 
 var KEYWORDS = [
@@ -43623,7 +41445,7 @@ module.exports = function (metaSchema, keywordsJsonPointers) {
   return metaSchema;
 };
 
-},{}],271:[function(require,module,exports){
+},{}],269:[function(require,module,exports){
 'use strict';
 
 var metaSchema = require('./refs/json-schema-draft-07.json');
@@ -43662,7 +41484,7 @@ module.exports = {
   }
 };
 
-},{"./refs/json-schema-draft-07.json":301}],272:[function(require,module,exports){
+},{"./refs/json-schema-draft-07.json":299}],270:[function(require,module,exports){
 'use strict';
 module.exports = function generate__limit(it, $keyword, $ruleType) {
   var out = ' ';
@@ -43827,7 +41649,7 @@ module.exports = function generate__limit(it, $keyword, $ruleType) {
   return out;
 }
 
-},{}],273:[function(require,module,exports){
+},{}],271:[function(require,module,exports){
 'use strict';
 module.exports = function generate__limitItems(it, $keyword, $ruleType) {
   var out = ' ';
@@ -43909,7 +41731,7 @@ module.exports = function generate__limitItems(it, $keyword, $ruleType) {
   return out;
 }
 
-},{}],274:[function(require,module,exports){
+},{}],272:[function(require,module,exports){
 'use strict';
 module.exports = function generate__limitLength(it, $keyword, $ruleType) {
   var out = ' ';
@@ -43996,7 +41818,7 @@ module.exports = function generate__limitLength(it, $keyword, $ruleType) {
   return out;
 }
 
-},{}],275:[function(require,module,exports){
+},{}],273:[function(require,module,exports){
 'use strict';
 module.exports = function generate__limitProperties(it, $keyword, $ruleType) {
   var out = ' ';
@@ -44078,7 +41900,7 @@ module.exports = function generate__limitProperties(it, $keyword, $ruleType) {
   return out;
 }
 
-},{}],276:[function(require,module,exports){
+},{}],274:[function(require,module,exports){
 'use strict';
 module.exports = function generate_allOf(it, $keyword, $ruleType) {
   var out = ' ';
@@ -44122,7 +41944,7 @@ module.exports = function generate_allOf(it, $keyword, $ruleType) {
   return out;
 }
 
-},{}],277:[function(require,module,exports){
+},{}],275:[function(require,module,exports){
 'use strict';
 module.exports = function generate_anyOf(it, $keyword, $ruleType) {
   var out = ' ';
@@ -44197,7 +42019,7 @@ module.exports = function generate_anyOf(it, $keyword, $ruleType) {
   return out;
 }
 
-},{}],278:[function(require,module,exports){
+},{}],276:[function(require,module,exports){
 'use strict';
 module.exports = function generate_comment(it, $keyword, $ruleType) {
   var out = ' ';
@@ -44213,7 +42035,7 @@ module.exports = function generate_comment(it, $keyword, $ruleType) {
   return out;
 }
 
-},{}],279:[function(require,module,exports){
+},{}],277:[function(require,module,exports){
 'use strict';
 module.exports = function generate_const(it, $keyword, $ruleType) {
   var out = ' ';
@@ -44271,7 +42093,7 @@ module.exports = function generate_const(it, $keyword, $ruleType) {
   return out;
 }
 
-},{}],280:[function(require,module,exports){
+},{}],278:[function(require,module,exports){
 'use strict';
 module.exports = function generate_contains(it, $keyword, $ruleType) {
   var out = ' ';
@@ -44354,7 +42176,7 @@ module.exports = function generate_contains(it, $keyword, $ruleType) {
   return out;
 }
 
-},{}],281:[function(require,module,exports){
+},{}],279:[function(require,module,exports){
 'use strict';
 module.exports = function generate_custom(it, $keyword, $ruleType) {
   var out = ' ';
@@ -44584,7 +42406,7 @@ module.exports = function generate_custom(it, $keyword, $ruleType) {
   return out;
 }
 
-},{}],282:[function(require,module,exports){
+},{}],280:[function(require,module,exports){
 'use strict';
 module.exports = function generate_dependencies(it, $keyword, $ruleType) {
   var out = ' ';
@@ -44754,7 +42576,7 @@ module.exports = function generate_dependencies(it, $keyword, $ruleType) {
   return out;
 }
 
-},{}],283:[function(require,module,exports){
+},{}],281:[function(require,module,exports){
 'use strict';
 module.exports = function generate_enum(it, $keyword, $ruleType) {
   var out = ' ';
@@ -44822,7 +42644,7 @@ module.exports = function generate_enum(it, $keyword, $ruleType) {
   return out;
 }
 
-},{}],284:[function(require,module,exports){
+},{}],282:[function(require,module,exports){
 'use strict';
 module.exports = function generate_format(it, $keyword, $ruleType) {
   var out = ' ';
@@ -44974,7 +42796,7 @@ module.exports = function generate_format(it, $keyword, $ruleType) {
   return out;
 }
 
-},{}],285:[function(require,module,exports){
+},{}],283:[function(require,module,exports){
 'use strict';
 module.exports = function generate_if(it, $keyword, $ruleType) {
   var out = ' ';
@@ -45079,7 +42901,7 @@ module.exports = function generate_if(it, $keyword, $ruleType) {
   return out;
 }
 
-},{}],286:[function(require,module,exports){
+},{}],284:[function(require,module,exports){
 'use strict';
 
 //all requires must be explicit because browserify won't work with dynamic requires
@@ -45114,7 +42936,7 @@ module.exports = {
   validate: require('./validate')
 };
 
-},{"./_limit":272,"./_limitItems":273,"./_limitLength":274,"./_limitProperties":275,"./allOf":276,"./anyOf":277,"./comment":278,"./const":279,"./contains":280,"./dependencies":282,"./enum":283,"./format":284,"./if":285,"./items":287,"./multipleOf":288,"./not":289,"./oneOf":290,"./pattern":291,"./properties":292,"./propertyNames":293,"./ref":294,"./required":295,"./uniqueItems":296,"./validate":297}],287:[function(require,module,exports){
+},{"./_limit":270,"./_limitItems":271,"./_limitLength":272,"./_limitProperties":273,"./allOf":274,"./anyOf":275,"./comment":276,"./const":277,"./contains":278,"./dependencies":280,"./enum":281,"./format":282,"./if":283,"./items":285,"./multipleOf":286,"./not":287,"./oneOf":288,"./pattern":289,"./properties":290,"./propertyNames":291,"./ref":292,"./required":293,"./uniqueItems":294,"./validate":295}],285:[function(require,module,exports){
 'use strict';
 module.exports = function generate_items(it, $keyword, $ruleType) {
   var out = ' ';
@@ -45256,7 +43078,7 @@ module.exports = function generate_items(it, $keyword, $ruleType) {
   return out;
 }
 
-},{}],288:[function(require,module,exports){
+},{}],286:[function(require,module,exports){
 'use strict';
 module.exports = function generate_multipleOf(it, $keyword, $ruleType) {
   var out = ' ';
@@ -45338,7 +43160,7 @@ module.exports = function generate_multipleOf(it, $keyword, $ruleType) {
   return out;
 }
 
-},{}],289:[function(require,module,exports){
+},{}],287:[function(require,module,exports){
 'use strict';
 module.exports = function generate_not(it, $keyword, $ruleType) {
   var out = ' ';
@@ -45424,7 +43246,7 @@ module.exports = function generate_not(it, $keyword, $ruleType) {
   return out;
 }
 
-},{}],290:[function(require,module,exports){
+},{}],288:[function(require,module,exports){
 'use strict';
 module.exports = function generate_oneOf(it, $keyword, $ruleType) {
   var out = ' ';
@@ -45499,7 +43321,7 @@ module.exports = function generate_oneOf(it, $keyword, $ruleType) {
   return out;
 }
 
-},{}],291:[function(require,module,exports){
+},{}],289:[function(require,module,exports){
 'use strict';
 module.exports = function generate_pattern(it, $keyword, $ruleType) {
   var out = ' ';
@@ -45576,7 +43398,7 @@ module.exports = function generate_pattern(it, $keyword, $ruleType) {
   return out;
 }
 
-},{}],292:[function(require,module,exports){
+},{}],290:[function(require,module,exports){
 'use strict';
 module.exports = function generate_properties(it, $keyword, $ruleType) {
   var out = ' ';
@@ -45913,7 +43735,7 @@ module.exports = function generate_properties(it, $keyword, $ruleType) {
   return out;
 }
 
-},{}],293:[function(require,module,exports){
+},{}],291:[function(require,module,exports){
 'use strict';
 module.exports = function generate_propertyNames(it, $keyword, $ruleType) {
   var out = ' ';
@@ -45996,7 +43818,7 @@ module.exports = function generate_propertyNames(it, $keyword, $ruleType) {
   return out;
 }
 
-},{}],294:[function(require,module,exports){
+},{}],292:[function(require,module,exports){
 'use strict';
 module.exports = function generate_ref(it, $keyword, $ruleType) {
   var out = ' ';
@@ -46122,7 +43944,7 @@ module.exports = function generate_ref(it, $keyword, $ruleType) {
   return out;
 }
 
-},{}],295:[function(require,module,exports){
+},{}],293:[function(require,module,exports){
 'use strict';
 module.exports = function generate_required(it, $keyword, $ruleType) {
   var out = ' ';
@@ -46394,7 +44216,7 @@ module.exports = function generate_required(it, $keyword, $ruleType) {
   return out;
 }
 
-},{}],296:[function(require,module,exports){
+},{}],294:[function(require,module,exports){
 'use strict';
 module.exports = function generate_uniqueItems(it, $keyword, $ruleType) {
   var out = ' ';
@@ -46482,7 +44304,7 @@ module.exports = function generate_uniqueItems(it, $keyword, $ruleType) {
   return out;
 }
 
-},{}],297:[function(require,module,exports){
+},{}],295:[function(require,module,exports){
 'use strict';
 module.exports = function generate_validate(it, $keyword, $ruleType) {
   var out = '';
@@ -46966,7 +44788,7 @@ module.exports = function generate_validate(it, $keyword, $ruleType) {
   return out;
 }
 
-},{}],298:[function(require,module,exports){
+},{}],296:[function(require,module,exports){
 'use strict';
 
 var IDENTIFIER = /^[a-z_$][a-z0-9_$-]*$/i;
@@ -47114,7 +44936,7 @@ function validateKeyword(definition, throwError) {
     return false;
 }
 
-},{"./definition_schema":271,"./dotjs/custom":281}],299:[function(require,module,exports){
+},{"./definition_schema":269,"./dotjs/custom":279}],297:[function(require,module,exports){
 module.exports={
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://raw.githubusercontent.com/ajv-validator/ajv/master/lib/refs/data.json#",
@@ -47133,7 +44955,7 @@ module.exports={
     "additionalProperties": false
 }
 
-},{}],300:[function(require,module,exports){
+},{}],298:[function(require,module,exports){
 module.exports={
     "$schema": "http://json-schema.org/draft-06/schema#",
     "$id": "http://json-schema.org/draft-06/schema#",
@@ -47289,7 +45111,7 @@ module.exports={
     "default": {}
 }
 
-},{}],301:[function(require,module,exports){
+},{}],299:[function(require,module,exports){
 module.exports={
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "http://json-schema.org/draft-07/schema#",
@@ -47459,7 +45281,7 @@ module.exports={
     "default": true
 }
 
-},{}],302:[function(require,module,exports){
+},{}],300:[function(require,module,exports){
 // Copyright 2011 Mark Cavage <mcavage@gmail.com> All rights reserved.
 
 
@@ -47474,7 +45296,7 @@ module.exports = {
 
 };
 
-},{}],303:[function(require,module,exports){
+},{}],301:[function(require,module,exports){
 // Copyright 2011 Mark Cavage <mcavage@gmail.com> All rights reserved.
 
 var errors = require('./errors');
@@ -47503,7 +45325,7 @@ for (var e in errors) {
     module.exports[e] = errors[e];
 }
 
-},{"./errors":302,"./reader":304,"./types":305,"./writer":306}],304:[function(require,module,exports){
+},{"./errors":300,"./reader":302,"./types":303,"./writer":304}],302:[function(require,module,exports){
 // Copyright 2011 Mark Cavage <mcavage@gmail.com> All rights reserved.
 
 var assert = require('assert');
@@ -47767,7 +45589,7 @@ Reader.prototype._readTag = function (tag) {
 
 module.exports = Reader;
 
-},{"./errors":302,"./types":305,"assert":17,"safer-buffer":385}],305:[function(require,module,exports){
+},{"./errors":300,"./types":303,"assert":17,"safer-buffer":382}],303:[function(require,module,exports){
 // Copyright 2011 Mark Cavage <mcavage@gmail.com> All rights reserved.
 
 
@@ -47805,7 +45627,7 @@ module.exports = {
   Context: 128
 };
 
-},{}],306:[function(require,module,exports){
+},{}],304:[function(require,module,exports){
 // Copyright 2011 Mark Cavage <mcavage@gmail.com> All rights reserved.
 
 var assert = require('assert');
@@ -48124,7 +45946,7 @@ Writer.prototype._ensure = function (len) {
 
 module.exports = Writer;
 
-},{"./errors":302,"./types":305,"assert":17,"safer-buffer":385}],307:[function(require,module,exports){
+},{"./errors":300,"./types":303,"assert":17,"safer-buffer":382}],305:[function(require,module,exports){
 // Copyright 2011 Mark Cavage <mcavage@gmail.com> All rights reserved.
 
 // If you have no idea what ASN.1 or BER is, see this:
@@ -48146,7 +45968,7 @@ module.exports = {
 
 };
 
-},{"./ber/index":303}],308:[function(require,module,exports){
+},{"./ber/index":301}],306:[function(require,module,exports){
 (function (Buffer,process){(function (){
 // Copyright (c) 2012, Mark Cavage. All rights reserved.
 // Copyright 2015 Joyent, Inc.
@@ -48360,8 +46182,8 @@ function _setExports(ndebug) {
 
 module.exports = _setExports(process.env.NODE_NDEBUG);
 
-}).call(this)}).call(this,{"isBuffer":require("../../AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js")},require('_process'))
-},{"../../AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js":155,"_process":188,"assert":17,"stream":213,"util":254}],309:[function(require,module,exports){
+}).call(this)}).call(this,{"isBuffer":require("../../../../.nvm/versions/node/v16.10.0/lib/node_modules/browserify/node_modules/is-buffer/index.js")},require('_process'))
+},{"../../../../.nvm/versions/node/v16.10.0/lib/node_modules/browserify/node_modules/is-buffer/index.js":155,"_process":188,"assert":17,"stream":213,"util":254}],307:[function(require,module,exports){
 
 /*!
  *  Copyright 2010 LearnBoost <dev@learnboost.com>
@@ -48575,7 +46397,7 @@ function canonicalizeResource (resource) {
 }
 module.exports.canonicalizeResource = canonicalizeResource
 
-},{"crypto":82,"url":249}],310:[function(require,module,exports){
+},{"crypto":82,"url":249}],308:[function(require,module,exports){
 (function (process,Buffer){(function (){
 var aws4 = exports,
     url = require('url'),
@@ -48952,7 +46774,7 @@ aws4.sign = function(request, credentials) {
 }
 
 }).call(this)}).call(this,require('_process'),require("buffer").Buffer)
-},{"./lru":311,"_process":188,"buffer":71,"crypto":82,"querystring":199,"url":249}],311:[function(require,module,exports){
+},{"./lru":309,"_process":188,"buffer":71,"crypto":82,"querystring":199,"url":249}],309:[function(require,module,exports){
 module.exports = function(size) {
   return new LruCache(size)
 }
@@ -49050,7 +46872,7 @@ function DoublyLinkedNode(key, val) {
   this.next = null
 }
 
-},{}],312:[function(require,module,exports){
+},{}],310:[function(require,module,exports){
 'use strict';
 
 var crypto_hash_sha512 = require('tweetnacl').lowlevel.crypto_hash;
@@ -49608,7 +47430,7 @@ module.exports = {
       pbkdf: bcrypt_pbkdf
 };
 
-},{"tweetnacl":419}],313:[function(require,module,exports){
+},{"tweetnacl":416}],311:[function(require,module,exports){
 function Caseless (dict) {
   this.dict = dict || {}
 }
@@ -49677,7 +47499,7 @@ module.exports.httpify = function (resp, headers) {
   return c
 }
 
-},{}],314:[function(require,module,exports){
+},{}],312:[function(require,module,exports){
 (function (Buffer){(function (){
 var util = require('util');
 var Stream = require('stream').Stream;
@@ -49888,119 +47710,8 @@ CombinedStream.prototype._emitError = function(err) {
   this.emit('error', err);
 };
 
-}).call(this)}).call(this,{"isBuffer":require("../../../AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js")})
-},{"../../../AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js":155,"delayed-stream":316,"stream":213,"util":254}],315:[function(require,module,exports){
-(function (Buffer){(function (){
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-// NOTE: These type checking functions intentionally don't use `instanceof`
-// because it is fragile and can be easily faked with `Object.create()`.
-
-function isArray(arg) {
-  if (Array.isArray) {
-    return Array.isArray(arg);
-  }
-  return objectToString(arg) === '[object Array]';
-}
-exports.isArray = isArray;
-
-function isBoolean(arg) {
-  return typeof arg === 'boolean';
-}
-exports.isBoolean = isBoolean;
-
-function isNull(arg) {
-  return arg === null;
-}
-exports.isNull = isNull;
-
-function isNullOrUndefined(arg) {
-  return arg == null;
-}
-exports.isNullOrUndefined = isNullOrUndefined;
-
-function isNumber(arg) {
-  return typeof arg === 'number';
-}
-exports.isNumber = isNumber;
-
-function isString(arg) {
-  return typeof arg === 'string';
-}
-exports.isString = isString;
-
-function isSymbol(arg) {
-  return typeof arg === 'symbol';
-}
-exports.isSymbol = isSymbol;
-
-function isUndefined(arg) {
-  return arg === void 0;
-}
-exports.isUndefined = isUndefined;
-
-function isRegExp(re) {
-  return objectToString(re) === '[object RegExp]';
-}
-exports.isRegExp = isRegExp;
-
-function isObject(arg) {
-  return typeof arg === 'object' && arg !== null;
-}
-exports.isObject = isObject;
-
-function isDate(d) {
-  return objectToString(d) === '[object Date]';
-}
-exports.isDate = isDate;
-
-function isError(e) {
-  return (objectToString(e) === '[object Error]' || e instanceof Error);
-}
-exports.isError = isError;
-
-function isFunction(arg) {
-  return typeof arg === 'function';
-}
-exports.isFunction = isFunction;
-
-function isPrimitive(arg) {
-  return arg === null ||
-         typeof arg === 'boolean' ||
-         typeof arg === 'number' ||
-         typeof arg === 'string' ||
-         typeof arg === 'symbol' ||  // ES6 symbol
-         typeof arg === 'undefined';
-}
-exports.isPrimitive = isPrimitive;
-
-exports.isBuffer = Buffer.isBuffer;
-
-function objectToString(o) {
-  return Object.prototype.toString.call(o);
-}
-
-}).call(this)}).call(this,{"isBuffer":require("../../../AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js")})
-},{"../../../AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js":155}],316:[function(require,module,exports){
+}).call(this)}).call(this,{"isBuffer":require("../../../../../.nvm/versions/node/v16.10.0/lib/node_modules/browserify/node_modules/is-buffer/index.js")})
+},{"../../../../../.nvm/versions/node/v16.10.0/lib/node_modules/browserify/node_modules/is-buffer/index.js":155,"delayed-stream":313,"stream":213,"util":254}],313:[function(require,module,exports){
 var Stream = require('stream').Stream;
 var util = require('util');
 
@@ -50109,7 +47820,7 @@ DelayedStream.prototype._checkIfMaxDataSizeExceeded = function() {
   this.emit('error', new Error(message));
 };
 
-},{"stream":213,"util":254}],317:[function(require,module,exports){
+},{"stream":213,"util":254}],314:[function(require,module,exports){
 var crypto = require("crypto");
 var BigInteger = require("jsbn").BigInteger;
 var ECPointFp = require("./lib/ec.js").ECPointFp;
@@ -50169,7 +47880,7 @@ exports.ECKey = function(curve, key, isPublic)
 }
 
 
-},{"./lib/ec.js":318,"./lib/sec.js":319,"crypto":82,"jsbn":354,"safer-buffer":385}],318:[function(require,module,exports){
+},{"./lib/ec.js":315,"./lib/sec.js":316,"crypto":82,"jsbn":351,"safer-buffer":382}],315:[function(require,module,exports){
 // Basic Javascript Elliptic Curve implementation
 // Ported loosely from BouncyCastle's Java EC code
 // Only Fp curves implemented for now
@@ -50732,7 +48443,7 @@ var exports = {
 
 module.exports = exports
 
-},{"jsbn":354}],319:[function(require,module,exports){
+},{"jsbn":351}],316:[function(require,module,exports){
 // Named EC curves
 
 // Requires ec.js, jsbn.js, and jsbn2.js
@@ -50904,7 +48615,7 @@ module.exports = {
   "secp256r1":secp256r1
 }
 
-},{"./ec.js":318,"jsbn":354}],320:[function(require,module,exports){
+},{"./ec.js":315,"jsbn":351}],317:[function(require,module,exports){
 'use strict';
 
 var hasOwn = Object.prototype.hasOwnProperty;
@@ -51023,7 +48734,7 @@ module.exports = function extend() {
 	return target;
 };
 
-},{}],321:[function(require,module,exports){
+},{}],318:[function(require,module,exports){
 (function (process){(function (){
 /*
  * extsprintf.js: extended POSIX-style sprintf
@@ -51210,7 +48921,7 @@ function dumpException(ex)
 }
 
 }).call(this)}).call(this,require('_process'))
-},{"_process":188,"assert":17,"util":254}],322:[function(require,module,exports){
+},{"_process":188,"assert":17,"util":254}],319:[function(require,module,exports){
 'use strict';
 
 // do not edit .js files directly - edit src/index.jst
@@ -51258,7 +48969,7 @@ module.exports = function equal(a, b) {
   return a!==a && b!==b;
 };
 
-},{}],323:[function(require,module,exports){
+},{}],320:[function(require,module,exports){
 'use strict';
 
 module.exports = function (data, opts) {
@@ -51319,7 +49030,7 @@ module.exports = function (data, opts) {
     })(data);
 };
 
-},{}],324:[function(require,module,exports){
+},{}],321:[function(require,module,exports){
 module.exports = ForeverAgent
 ForeverAgent.SSL = ForeverAgentSSL
 
@@ -51459,11 +49170,11 @@ function createConnectionSSL (port, host, options) {
   return tls.connect(options);
 }
 
-},{"http":228,"https":151,"net":1,"tls":1,"util":254}],325:[function(require,module,exports){
+},{"http":228,"https":151,"net":1,"tls":1,"util":254}],322:[function(require,module,exports){
 /* eslint-env browser */
 module.exports = typeof self == 'object' ? self.FormData : window.FormData;
 
-},{}],326:[function(require,module,exports){
+},{}],323:[function(require,module,exports){
 module.exports={
   "$id": "afterRequest.json#",
   "$schema": "http://json-schema.org/draft-06/schema#",
@@ -51495,7 +49206,7 @@ module.exports={
   }
 }
 
-},{}],327:[function(require,module,exports){
+},{}],324:[function(require,module,exports){
 module.exports={
   "$id": "beforeRequest.json#",
   "$schema": "http://json-schema.org/draft-06/schema#",
@@ -51527,7 +49238,7 @@ module.exports={
   }
 }
 
-},{}],328:[function(require,module,exports){
+},{}],325:[function(require,module,exports){
 module.exports={
   "$id": "browser.json#",
   "$schema": "http://json-schema.org/draft-06/schema#",
@@ -51549,7 +49260,7 @@ module.exports={
   }
 }
 
-},{}],329:[function(require,module,exports){
+},{}],326:[function(require,module,exports){
 module.exports={
   "$id": "cache.json#",
   "$schema": "http://json-schema.org/draft-06/schema#",
@@ -51572,7 +49283,7 @@ module.exports={
   }
 }
 
-},{}],330:[function(require,module,exports){
+},{}],327:[function(require,module,exports){
 module.exports={
   "$id": "content.json#",
   "$schema": "http://json-schema.org/draft-06/schema#",
@@ -51603,7 +49314,7 @@ module.exports={
   }
 }
 
-},{}],331:[function(require,module,exports){
+},{}],328:[function(require,module,exports){
 module.exports={
   "$id": "cookie.json#",
   "$schema": "http://json-schema.org/draft-06/schema#",
@@ -51641,7 +49352,7 @@ module.exports={
   }
 }
 
-},{}],332:[function(require,module,exports){
+},{}],329:[function(require,module,exports){
 module.exports={
   "$id": "creator.json#",
   "$schema": "http://json-schema.org/draft-06/schema#",
@@ -51663,7 +49374,7 @@ module.exports={
   }
 }
 
-},{}],333:[function(require,module,exports){
+},{}],330:[function(require,module,exports){
 module.exports={
   "$id": "entry.json#",
   "$schema": "http://json-schema.org/draft-06/schema#",
@@ -51718,7 +49429,7 @@ module.exports={
   }
 }
 
-},{}],334:[function(require,module,exports){
+},{}],331:[function(require,module,exports){
 module.exports={
   "$id": "har.json#",
   "$schema": "http://json-schema.org/draft-06/schema#",
@@ -51733,7 +49444,7 @@ module.exports={
   }
 }
 
-},{}],335:[function(require,module,exports){
+},{}],332:[function(require,module,exports){
 module.exports={
   "$id": "header.json#",
   "$schema": "http://json-schema.org/draft-06/schema#",
@@ -51755,7 +49466,7 @@ module.exports={
   }
 }
 
-},{}],336:[function(require,module,exports){
+},{}],333:[function(require,module,exports){
 'use strict'
 
 module.exports = {
@@ -51779,7 +49490,7 @@ module.exports = {
   timings: require('./timings.json')
 }
 
-},{"./afterRequest.json":326,"./beforeRequest.json":327,"./browser.json":328,"./cache.json":329,"./content.json":330,"./cookie.json":331,"./creator.json":332,"./entry.json":333,"./har.json":334,"./header.json":335,"./log.json":337,"./page.json":338,"./pageTimings.json":339,"./postData.json":340,"./query.json":341,"./request.json":342,"./response.json":343,"./timings.json":344}],337:[function(require,module,exports){
+},{"./afterRequest.json":323,"./beforeRequest.json":324,"./browser.json":325,"./cache.json":326,"./content.json":327,"./cookie.json":328,"./creator.json":329,"./entry.json":330,"./har.json":331,"./header.json":332,"./log.json":334,"./page.json":335,"./pageTimings.json":336,"./postData.json":337,"./query.json":338,"./request.json":339,"./response.json":340,"./timings.json":341}],334:[function(require,module,exports){
 module.exports={
   "$id": "log.json#",
   "$schema": "http://json-schema.org/draft-06/schema#",
@@ -51817,7 +49528,7 @@ module.exports={
   }
 }
 
-},{}],338:[function(require,module,exports){
+},{}],335:[function(require,module,exports){
 module.exports={
   "$id": "page.json#",
   "$schema": "http://json-schema.org/draft-06/schema#",
@@ -51851,7 +49562,7 @@ module.exports={
   }
 }
 
-},{}],339:[function(require,module,exports){
+},{}],336:[function(require,module,exports){
 module.exports={
   "$id": "pageTimings.json#",
   "$schema": "http://json-schema.org/draft-06/schema#",
@@ -51871,7 +49582,7 @@ module.exports={
   }
 }
 
-},{}],340:[function(require,module,exports){
+},{}],337:[function(require,module,exports){
 module.exports={
   "$id": "postData.json#",
   "$schema": "http://json-schema.org/draft-06/schema#",
@@ -51916,7 +49627,7 @@ module.exports={
   }
 }
 
-},{}],341:[function(require,module,exports){
+},{}],338:[function(require,module,exports){
 module.exports={
   "$id": "query.json#",
   "$schema": "http://json-schema.org/draft-06/schema#",
@@ -51938,7 +49649,7 @@ module.exports={
   }
 }
 
-},{}],342:[function(require,module,exports){
+},{}],339:[function(require,module,exports){
 module.exports={
   "$id": "request.json#",
   "$schema": "http://json-schema.org/draft-06/schema#",
@@ -51997,7 +49708,7 @@ module.exports={
   }
 }
 
-},{}],343:[function(require,module,exports){
+},{}],340:[function(require,module,exports){
 module.exports={
   "$id": "response.json#",
   "$schema": "http://json-schema.org/draft-06/schema#",
@@ -52053,7 +49764,7 @@ module.exports={
   }
 }
 
-},{}],344:[function(require,module,exports){
+},{}],341:[function(require,module,exports){
 module.exports={
   "$id": "timings.json#",
   "$schema": "http://json-schema.org/draft-06/schema#",
@@ -52097,7 +49808,7 @@ module.exports={
   }
 }
 
-},{}],345:[function(require,module,exports){
+},{}],342:[function(require,module,exports){
 function HARError (errors) {
   var message = 'validation failed'
 
@@ -52116,7 +49827,7 @@ HARError.prototype = Error.prototype
 
 module.exports = HARError
 
-},{}],346:[function(require,module,exports){
+},{}],343:[function(require,module,exports){
 var Ajv = require('ajv')
 var HARError = require('./error')
 var schemas = require('har-schema')
@@ -52220,7 +49931,7 @@ exports.timings = function (data) {
   return validate('timings', data)
 }
 
-},{"./error":345,"ajv":259,"ajv/lib/refs/json-schema-draft-06.json":300,"har-schema":336}],347:[function(require,module,exports){
+},{"./error":342,"ajv":257,"ajv/lib/refs/json-schema-draft-06.json":298,"har-schema":333}],344:[function(require,module,exports){
 // Copyright 2015 Joyent, Inc.
 
 var parser = require('./parser');
@@ -52251,7 +49962,7 @@ module.exports = {
   verifyHMAC: verify.verifyHMAC
 };
 
-},{"./parser":348,"./signer":349,"./utils":350,"./verify":351}],348:[function(require,module,exports){
+},{"./parser":345,"./signer":346,"./utils":347,"./verify":348}],345:[function(require,module,exports){
 // Copyright 2012 Joyent, Inc.  All rights reserved.
 
 var assert = require('assert-plus');
@@ -52568,7 +50279,7 @@ module.exports = {
 
 };
 
-},{"./utils":350,"assert-plus":308,"util":254}],349:[function(require,module,exports){
+},{"./utils":347,"assert-plus":306,"util":254}],346:[function(require,module,exports){
 (function (Buffer){(function (){
 // Copyright 2012 Joyent, Inc.  All rights reserved.
 
@@ -52972,8 +50683,8 @@ module.exports = {
 
 };
 
-}).call(this)}).call(this,{"isBuffer":require("../../../AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js")})
-},{"../../../AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js":155,"./utils":350,"assert-plus":308,"crypto":82,"http":228,"jsprim":358,"sshpk":405,"util":254}],350:[function(require,module,exports){
+}).call(this)}).call(this,{"isBuffer":require("../../../../../.nvm/versions/node/v16.10.0/lib/node_modules/browserify/node_modules/is-buffer/index.js")})
+},{"../../../../../.nvm/versions/node/v16.10.0/lib/node_modules/browserify/node_modules/is-buffer/index.js":155,"./utils":347,"assert-plus":306,"crypto":82,"http":228,"jsprim":355,"sshpk":402,"util":254}],347:[function(require,module,exports){
 // Copyright 2012 Joyent, Inc.  All rights reserved.
 
 var assert = require('assert-plus');
@@ -53087,7 +50798,7 @@ module.exports = {
   }
 };
 
-},{"assert-plus":308,"sshpk":405,"util":254}],351:[function(require,module,exports){
+},{"assert-plus":306,"sshpk":402,"util":254}],348:[function(require,module,exports){
 (function (Buffer){(function (){
 // Copyright 2015 Joyent, Inc.
 
@@ -53179,7 +50890,7 @@ module.exports = {
 };
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"./utils":350,"assert-plus":308,"buffer":71,"crypto":82,"sshpk":405}],352:[function(require,module,exports){
+},{"./utils":347,"assert-plus":306,"buffer":71,"crypto":82,"sshpk":402}],349:[function(require,module,exports){
 module.exports      = isTypedArray
 isTypedArray.strict = isStrictTypedArray
 isTypedArray.loose  = isLooseTypedArray
@@ -53222,7 +50933,7 @@ function isLooseTypedArray(arr) {
   return names[toString.call(arr)]
 }
 
-},{}],353:[function(require,module,exports){
+},{}],350:[function(require,module,exports){
 var stream = require('stream')
 
 
@@ -53251,7 +50962,7 @@ module.exports.isReadable = isReadable
 module.exports.isWritable = isWritable
 module.exports.isDuplex   = isDuplex
 
-},{"stream":213}],354:[function(require,module,exports){
+},{"stream":213}],351:[function(require,module,exports){
 (function(){
 
     // Copyright (c) 2005  Tom Wu
@@ -54610,7 +52321,7 @@ module.exports.isDuplex   = isDuplex
 
 }).call(this);
 
-},{}],355:[function(require,module,exports){
+},{}],352:[function(require,module,exports){
 'use strict';
 
 var traverse = module.exports = function (schema, opts, cb) {
@@ -54701,7 +52412,7 @@ function escapeJsonPtr(str) {
   return str.replace(/~/g, '~0').replace(/\//g, '~1');
 }
 
-},{}],356:[function(require,module,exports){
+},{}],353:[function(require,module,exports){
 /**
  * JSONSchema Validator - Validates JavaScript objects using JSON Schemas
  *	(http://www.json.com/json-schema-proposal/)
@@ -54974,7 +52685,7 @@ exports.mustBeValid = function(result){
 return exports;
 }));
 
-},{}],357:[function(require,module,exports){
+},{}],354:[function(require,module,exports){
 exports = module.exports = stringify
 exports.getSerialize = serializer
 
@@ -55003,7 +52714,7 @@ function serializer(replacer, cycleReplacer) {
   }
 }
 
-},{}],358:[function(require,module,exports){
+},{}],355:[function(require,module,exports){
 /*
  * lib/jsprim.js: utilities for primitive JavaScript types
  */
@@ -55740,7 +53451,7 @@ function mergeObjects(provided, overrides, defaults)
 	return (rv);
 }
 
-},{"assert-plus":308,"extsprintf":321,"json-schema":356,"util":254,"verror":424}],359:[function(require,module,exports){
+},{"assert-plus":306,"extsprintf":318,"json-schema":353,"util":254,"verror":421}],356:[function(require,module,exports){
 module.exports={
   "application/1d-interleaved-parityfec": {
     "source": "iana"
@@ -64261,7 +61972,7 @@ module.exports={
   }
 }
 
-},{}],360:[function(require,module,exports){
+},{}],357:[function(require,module,exports){
 /*!
  * mime-db
  * Copyright(c) 2014 Jonathan Ong
@@ -64275,7 +61986,7 @@ module.exports={
 
 module.exports = require('./db.json')
 
-},{"./db.json":359}],361:[function(require,module,exports){
+},{"./db.json":356}],358:[function(require,module,exports){
 /*!
  * mime-types
  * Copyright(c) 2014 Jonathan Ong
@@ -64465,7 +62176,7 @@ function populateMaps (extensions, types) {
   })
 }
 
-},{"mime-db":360,"path":181}],362:[function(require,module,exports){
+},{"mime-db":357,"path":181}],359:[function(require,module,exports){
 var crypto = require('crypto')
 
 function sha (key, body, algorithm) {
@@ -64612,7 +62323,7 @@ exports.plaintext = plaintext
 exports.sign = sign
 exports.rfc3986 = rfc3986
 exports.generateBase = generateBase
-},{"crypto":82}],363:[function(require,module,exports){
+},{"crypto":82}],360:[function(require,module,exports){
 (function (process){(function (){
 // Generated by CoffeeScript 1.12.2
 (function() {
@@ -64652,7 +62363,7 @@ exports.generateBase = generateBase
 
 
 }).call(this)}).call(this,require('_process'))
-},{"_process":188}],364:[function(require,module,exports){
+},{"_process":188}],361:[function(require,module,exports){
 module.exports=[
 "ac",
 "com.ac",
@@ -74029,7 +71740,7 @@ module.exports=[
 "virtualserver.io",
 "enterprisecloud.nu"
 ]
-},{}],365:[function(require,module,exports){
+},{}],362:[function(require,module,exports){
 /*eslint no-var:0, prefer-arrow-callback: 0, object-shorthand: 0 */
 'use strict';
 
@@ -74300,7 +72011,1473 @@ exports.isValid = function (domain) {
   return Boolean(parsed.domain && parsed.listed);
 };
 
-},{"./data/rules.json":364,"punycode":196}],366:[function(require,module,exports){
+},{"./data/rules.json":361,"punycode":196}],363:[function(require,module,exports){
+// Copyright 2010-2012 Mikeal Rogers
+//
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
+//
+//        http://www.apache.org/licenses/LICENSE-2.0
+//
+//    Unless required by applicable law or agreed to in writing, software
+//    distributed under the License is distributed on an "AS IS" BASIS,
+//    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//    See the License for the specific language governing permissions and
+//    limitations under the License.
+
+'use strict'
+
+var extend = require('extend')
+var cookies = require('./lib/cookies')
+var helpers = require('./lib/helpers')
+
+var paramsHaveRequestBody = helpers.paramsHaveRequestBody
+
+// organize params for patch, post, put, head, del
+function initParams (uri, options, callback) {
+  if (typeof options === 'function') {
+    callback = options
+  }
+
+  var params = {}
+  if (options !== null && typeof options === 'object') {
+    extend(params, options, {uri: uri})
+  } else if (typeof uri === 'string') {
+    extend(params, {uri: uri})
+  } else {
+    extend(params, uri)
+  }
+
+  params.callback = callback || params.callback
+  return params
+}
+
+function request (uri, options, callback) {
+  if (typeof uri === 'undefined') {
+    throw new Error('undefined is not a valid uri or options object.')
+  }
+
+  var params = initParams(uri, options, callback)
+
+  if (params.method === 'HEAD' && paramsHaveRequestBody(params)) {
+    throw new Error('HTTP HEAD requests MUST NOT include a request body.')
+  }
+
+  return new request.Request(params)
+}
+
+function verbFunc (verb) {
+  var method = verb.toUpperCase()
+  return function (uri, options, callback) {
+    var params = initParams(uri, options, callback)
+    params.method = method
+    return request(params, params.callback)
+  }
+}
+
+// define like this to please codeintel/intellisense IDEs
+request.get = verbFunc('get')
+request.head = verbFunc('head')
+request.options = verbFunc('options')
+request.post = verbFunc('post')
+request.put = verbFunc('put')
+request.patch = verbFunc('patch')
+request.del = verbFunc('delete')
+request['delete'] = verbFunc('delete')
+
+request.jar = function (store) {
+  return cookies.jar(store)
+}
+
+request.cookie = function (str) {
+  return cookies.parse(str)
+}
+
+function wrapRequestMethod (method, options, requester, verb) {
+  return function (uri, opts, callback) {
+    var params = initParams(uri, opts, callback)
+
+    var target = {}
+    extend(true, target, options, params)
+
+    target.pool = params.pool || options.pool
+
+    if (verb) {
+      target.method = verb.toUpperCase()
+    }
+
+    if (typeof requester === 'function') {
+      method = requester
+    }
+
+    return method(target, target.callback)
+  }
+}
+
+request.defaults = function (options, requester) {
+  var self = this
+
+  options = options || {}
+
+  if (typeof options === 'function') {
+    requester = options
+    options = {}
+  }
+
+  var defaults = wrapRequestMethod(self, options, requester)
+
+  var verbs = ['get', 'head', 'post', 'put', 'patch', 'del', 'delete']
+  verbs.forEach(function (verb) {
+    defaults[verb] = wrapRequestMethod(self[verb], options, requester, verb)
+  })
+
+  defaults.cookie = wrapRequestMethod(self.cookie, options, requester)
+  defaults.jar = self.jar
+  defaults.defaults = self.defaults
+  return defaults
+}
+
+request.forever = function (agentOptions, optionsArg) {
+  var options = {}
+  if (optionsArg) {
+    extend(options, optionsArg)
+  }
+  if (agentOptions) {
+    options.agentOptions = agentOptions
+  }
+
+  options.forever = true
+  return request.defaults(options)
+}
+
+// Exports
+
+module.exports = request
+request.Request = require('./request')
+request.initParams = initParams
+
+// Backwards compatibility for request.debug
+Object.defineProperty(request, 'debug', {
+  enumerable: true,
+  get: function () {
+    return request.Request.debug
+  },
+  set: function (debug) {
+    request.Request.debug = debug
+  }
+})
+
+},{"./lib/cookies":365,"./lib/helpers":369,"./request":380,"extend":317}],364:[function(require,module,exports){
+'use strict'
+
+var caseless = require('caseless')
+var uuid = require('uuid/v4')
+var helpers = require('./helpers')
+
+var md5 = helpers.md5
+var toBase64 = helpers.toBase64
+
+function Auth (request) {
+  // define all public properties here
+  this.request = request
+  this.hasAuth = false
+  this.sentAuth = false
+  this.bearerToken = null
+  this.user = null
+  this.pass = null
+}
+
+Auth.prototype.basic = function (user, pass, sendImmediately) {
+  var self = this
+  if (typeof user !== 'string' || (pass !== undefined && typeof pass !== 'string')) {
+    self.request.emit('error', new Error('auth() received invalid user or password'))
+  }
+  self.user = user
+  self.pass = pass
+  self.hasAuth = true
+  var header = user + ':' + (pass || '')
+  if (sendImmediately || typeof sendImmediately === 'undefined') {
+    var authHeader = 'Basic ' + toBase64(header)
+    self.sentAuth = true
+    return authHeader
+  }
+}
+
+Auth.prototype.bearer = function (bearer, sendImmediately) {
+  var self = this
+  self.bearerToken = bearer
+  self.hasAuth = true
+  if (sendImmediately || typeof sendImmediately === 'undefined') {
+    if (typeof bearer === 'function') {
+      bearer = bearer()
+    }
+    var authHeader = 'Bearer ' + (bearer || '')
+    self.sentAuth = true
+    return authHeader
+  }
+}
+
+Auth.prototype.digest = function (method, path, authHeader) {
+  // TODO: More complete implementation of RFC 2617.
+  //   - handle challenge.domain
+  //   - support qop="auth-int" only
+  //   - handle Authentication-Info (not necessarily?)
+  //   - check challenge.stale (not necessarily?)
+  //   - increase nc (not necessarily?)
+  // For reference:
+  // http://tools.ietf.org/html/rfc2617#section-3
+  // https://github.com/bagder/curl/blob/master/lib/http_digest.c
+
+  var self = this
+
+  var challenge = {}
+  var re = /([a-z0-9_-]+)=(?:"([^"]+)"|([a-z0-9_-]+))/gi
+  while (true) {
+    var match = re.exec(authHeader)
+    if (!match) {
+      break
+    }
+    challenge[match[1]] = match[2] || match[3]
+  }
+
+  /**
+   * RFC 2617: handle both MD5 and MD5-sess algorithms.
+   *
+   * If the algorithm directive's value is "MD5" or unspecified, then HA1 is
+   *   HA1=MD5(username:realm:password)
+   * If the algorithm directive's value is "MD5-sess", then HA1 is
+   *   HA1=MD5(MD5(username:realm:password):nonce:cnonce)
+   */
+  var ha1Compute = function (algorithm, user, realm, pass, nonce, cnonce) {
+    var ha1 = md5(user + ':' + realm + ':' + pass)
+    if (algorithm && algorithm.toLowerCase() === 'md5-sess') {
+      return md5(ha1 + ':' + nonce + ':' + cnonce)
+    } else {
+      return ha1
+    }
+  }
+
+  var qop = /(^|,)\s*auth\s*($|,)/.test(challenge.qop) && 'auth'
+  var nc = qop && '00000001'
+  var cnonce = qop && uuid().replace(/-/g, '')
+  var ha1 = ha1Compute(challenge.algorithm, self.user, challenge.realm, self.pass, challenge.nonce, cnonce)
+  var ha2 = md5(method + ':' + path)
+  var digestResponse = qop
+    ? md5(ha1 + ':' + challenge.nonce + ':' + nc + ':' + cnonce + ':' + qop + ':' + ha2)
+    : md5(ha1 + ':' + challenge.nonce + ':' + ha2)
+  var authValues = {
+    username: self.user,
+    realm: challenge.realm,
+    nonce: challenge.nonce,
+    uri: path,
+    qop: qop,
+    response: digestResponse,
+    nc: nc,
+    cnonce: cnonce,
+    algorithm: challenge.algorithm,
+    opaque: challenge.opaque
+  }
+
+  authHeader = []
+  for (var k in authValues) {
+    if (authValues[k]) {
+      if (k === 'qop' || k === 'nc' || k === 'algorithm') {
+        authHeader.push(k + '=' + authValues[k])
+      } else {
+        authHeader.push(k + '="' + authValues[k] + '"')
+      }
+    }
+  }
+  authHeader = 'Digest ' + authHeader.join(', ')
+  self.sentAuth = true
+  return authHeader
+}
+
+Auth.prototype.onRequest = function (user, pass, sendImmediately, bearer) {
+  var self = this
+  var request = self.request
+
+  var authHeader
+  if (bearer === undefined && user === undefined) {
+    self.request.emit('error', new Error('no auth mechanism defined'))
+  } else if (bearer !== undefined) {
+    authHeader = self.bearer(bearer, sendImmediately)
+  } else {
+    authHeader = self.basic(user, pass, sendImmediately)
+  }
+  if (authHeader) {
+    request.setHeader('authorization', authHeader)
+  }
+}
+
+Auth.prototype.onResponse = function (response) {
+  var self = this
+  var request = self.request
+
+  if (!self.hasAuth || self.sentAuth) { return null }
+
+  var c = caseless(response.headers)
+
+  var authHeader = c.get('www-authenticate')
+  var authVerb = authHeader && authHeader.split(' ')[0].toLowerCase()
+  request.debug('reauth', authVerb)
+
+  switch (authVerb) {
+    case 'basic':
+      return self.basic(self.user, self.pass, true)
+
+    case 'bearer':
+      return self.bearer(self.bearerToken, true)
+
+    case 'digest':
+      return self.digest(request.method, request.path, authHeader)
+  }
+}
+
+exports.Auth = Auth
+
+},{"./helpers":369,"caseless":311,"uuid/v4":420}],365:[function(require,module,exports){
+'use strict'
+
+var tough = require('tough-cookie')
+
+var Cookie = tough.Cookie
+var CookieJar = tough.CookieJar
+
+exports.parse = function (str) {
+  if (str && str.uri) {
+    str = str.uri
+  }
+  if (typeof str !== 'string') {
+    throw new Error('The cookie function only accepts STRING as param')
+  }
+  return Cookie.parse(str, {loose: true})
+}
+
+// Adapt the sometimes-Async api of tough.CookieJar to our requirements
+function RequestJar (store) {
+  var self = this
+  self._jar = new CookieJar(store, {looseMode: true})
+}
+RequestJar.prototype.setCookie = function (cookieOrStr, uri, options) {
+  var self = this
+  return self._jar.setCookieSync(cookieOrStr, uri, options || {})
+}
+RequestJar.prototype.getCookieString = function (uri) {
+  var self = this
+  return self._jar.getCookieStringSync(uri)
+}
+RequestJar.prototype.getCookies = function (uri) {
+  var self = this
+  return self._jar.getCookiesSync(uri)
+}
+
+exports.jar = function (store) {
+  return new RequestJar(store)
+}
+
+},{"tough-cookie":408}],366:[function(require,module,exports){
+(function (process){(function (){
+'use strict'
+
+function formatHostname (hostname) {
+  // canonicalize the hostname, so that 'oogle.com' won't match 'google.com'
+  return hostname.replace(/^\.*/, '.').toLowerCase()
+}
+
+function parseNoProxyZone (zone) {
+  zone = zone.trim().toLowerCase()
+
+  var zoneParts = zone.split(':', 2)
+  var zoneHost = formatHostname(zoneParts[0])
+  var zonePort = zoneParts[1]
+  var hasPort = zone.indexOf(':') > -1
+
+  return {hostname: zoneHost, port: zonePort, hasPort: hasPort}
+}
+
+function uriInNoProxy (uri, noProxy) {
+  var port = uri.port || (uri.protocol === 'https:' ? '443' : '80')
+  var hostname = formatHostname(uri.hostname)
+  var noProxyList = noProxy.split(',')
+
+  // iterate through the noProxyList until it finds a match.
+  return noProxyList.map(parseNoProxyZone).some(function (noProxyZone) {
+    var isMatchedAt = hostname.indexOf(noProxyZone.hostname)
+    var hostnameMatched = (
+      isMatchedAt > -1 &&
+        (isMatchedAt === hostname.length - noProxyZone.hostname.length)
+    )
+
+    if (noProxyZone.hasPort) {
+      return (port === noProxyZone.port) && hostnameMatched
+    }
+
+    return hostnameMatched
+  })
+}
+
+function getProxyFromURI (uri) {
+  // Decide the proper request proxy to use based on the request URI object and the
+  // environmental variables (NO_PROXY, HTTP_PROXY, etc.)
+  // respect NO_PROXY environment variables (see: https://lynx.invisible-island.net/lynx2.8.7/breakout/lynx_help/keystrokes/environments.html)
+
+  var noProxy = process.env.NO_PROXY || process.env.no_proxy || ''
+
+  // if the noProxy is a wildcard then return null
+
+  if (noProxy === '*') {
+    return null
+  }
+
+  // if the noProxy is not empty and the uri is found return null
+
+  if (noProxy !== '' && uriInNoProxy(uri, noProxy)) {
+    return null
+  }
+
+  // Check for HTTP or HTTPS Proxy in environment Else default to null
+
+  if (uri.protocol === 'http:') {
+    return process.env.HTTP_PROXY ||
+      process.env.http_proxy || null
+  }
+
+  if (uri.protocol === 'https:') {
+    return process.env.HTTPS_PROXY ||
+      process.env.https_proxy ||
+      process.env.HTTP_PROXY ||
+      process.env.http_proxy || null
+  }
+
+  // if none of that works, return null
+  // (What uri protocol are you using then?)
+
+  return null
+}
+
+module.exports = getProxyFromURI
+
+}).call(this)}).call(this,require('_process'))
+},{"_process":188}],367:[function(require,module,exports){
+'use strict'
+
+var fs = require('fs')
+var qs = require('querystring')
+var validate = require('har-validator')
+var extend = require('extend')
+
+function Har (request) {
+  this.request = request
+}
+
+Har.prototype.reducer = function (obj, pair) {
+  // new property ?
+  if (obj[pair.name] === undefined) {
+    obj[pair.name] = pair.value
+    return obj
+  }
+
+  // existing? convert to array
+  var arr = [
+    obj[pair.name],
+    pair.value
+  ]
+
+  obj[pair.name] = arr
+
+  return obj
+}
+
+Har.prototype.prep = function (data) {
+  // construct utility properties
+  data.queryObj = {}
+  data.headersObj = {}
+  data.postData.jsonObj = false
+  data.postData.paramsObj = false
+
+  // construct query objects
+  if (data.queryString && data.queryString.length) {
+    data.queryObj = data.queryString.reduce(this.reducer, {})
+  }
+
+  // construct headers objects
+  if (data.headers && data.headers.length) {
+    // loweCase header keys
+    data.headersObj = data.headers.reduceRight(function (headers, header) {
+      headers[header.name] = header.value
+      return headers
+    }, {})
+  }
+
+  // construct Cookie header
+  if (data.cookies && data.cookies.length) {
+    var cookies = data.cookies.map(function (cookie) {
+      return cookie.name + '=' + cookie.value
+    })
+
+    if (cookies.length) {
+      data.headersObj.cookie = cookies.join('; ')
+    }
+  }
+
+  // prep body
+  function some (arr) {
+    return arr.some(function (type) {
+      return data.postData.mimeType.indexOf(type) === 0
+    })
+  }
+
+  if (some([
+    'multipart/mixed',
+    'multipart/related',
+    'multipart/form-data',
+    'multipart/alternative'])) {
+    // reset values
+    data.postData.mimeType = 'multipart/form-data'
+  } else if (some([
+    'application/x-www-form-urlencoded'])) {
+    if (!data.postData.params) {
+      data.postData.text = ''
+    } else {
+      data.postData.paramsObj = data.postData.params.reduce(this.reducer, {})
+
+      // always overwrite
+      data.postData.text = qs.stringify(data.postData.paramsObj)
+    }
+  } else if (some([
+    'text/json',
+    'text/x-json',
+    'application/json',
+    'application/x-json'])) {
+    data.postData.mimeType = 'application/json'
+
+    if (data.postData.text) {
+      try {
+        data.postData.jsonObj = JSON.parse(data.postData.text)
+      } catch (e) {
+        this.request.debug(e)
+
+        // force back to text/plain
+        data.postData.mimeType = 'text/plain'
+      }
+    }
+  }
+
+  return data
+}
+
+Har.prototype.options = function (options) {
+  // skip if no har property defined
+  if (!options.har) {
+    return options
+  }
+
+  var har = {}
+  extend(har, options.har)
+
+  // only process the first entry
+  if (har.log && har.log.entries) {
+    har = har.log.entries[0]
+  }
+
+  // add optional properties to make validation successful
+  har.url = har.url || options.url || options.uri || options.baseUrl || '/'
+  har.httpVersion = har.httpVersion || 'HTTP/1.1'
+  har.queryString = har.queryString || []
+  har.headers = har.headers || []
+  har.cookies = har.cookies || []
+  har.postData = har.postData || {}
+  har.postData.mimeType = har.postData.mimeType || 'application/octet-stream'
+
+  har.bodySize = 0
+  har.headersSize = 0
+  har.postData.size = 0
+
+  if (!validate.request(har)) {
+    return options
+  }
+
+  // clean up and get some utility properties
+  var req = this.prep(har)
+
+  // construct new options
+  if (req.url) {
+    options.url = req.url
+  }
+
+  if (req.method) {
+    options.method = req.method
+  }
+
+  if (Object.keys(req.queryObj).length) {
+    options.qs = req.queryObj
+  }
+
+  if (Object.keys(req.headersObj).length) {
+    options.headers = req.headersObj
+  }
+
+  function test (type) {
+    return req.postData.mimeType.indexOf(type) === 0
+  }
+  if (test('application/x-www-form-urlencoded')) {
+    options.form = req.postData.paramsObj
+  } else if (test('application/json')) {
+    if (req.postData.jsonObj) {
+      options.body = req.postData.jsonObj
+      options.json = true
+    }
+  } else if (test('multipart/form-data')) {
+    options.formData = {}
+
+    req.postData.params.forEach(function (param) {
+      var attachment = {}
+
+      if (!param.fileName && !param.contentType) {
+        options.formData[param.name] = param.value
+        return
+      }
+
+      // attempt to read from disk!
+      if (param.fileName && !param.value) {
+        attachment.value = fs.createReadStream(param.fileName)
+      } else if (param.value) {
+        attachment.value = param.value
+      }
+
+      if (param.fileName) {
+        attachment.options = {
+          filename: param.fileName,
+          contentType: param.contentType ? param.contentType : null
+        }
+      }
+
+      options.formData[param.name] = attachment
+    })
+  } else {
+    if (req.postData.text) {
+      options.body = req.postData.text
+    }
+  }
+
+  return options
+}
+
+exports.Har = Har
+
+},{"extend":317,"fs":1,"har-validator":343,"querystring":199}],368:[function(require,module,exports){
+'use strict'
+
+var crypto = require('crypto')
+
+function randomString (size) {
+  var bits = (size + 1) * 6
+  var buffer = crypto.randomBytes(Math.ceil(bits / 8))
+  var string = buffer.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+  return string.slice(0, size)
+}
+
+function calculatePayloadHash (payload, algorithm, contentType) {
+  var hash = crypto.createHash(algorithm)
+  hash.update('hawk.1.payload\n')
+  hash.update((contentType ? contentType.split(';')[0].trim().toLowerCase() : '') + '\n')
+  hash.update(payload || '')
+  hash.update('\n')
+  return hash.digest('base64')
+}
+
+exports.calculateMac = function (credentials, opts) {
+  var normalized = 'hawk.1.header\n' +
+    opts.ts + '\n' +
+    opts.nonce + '\n' +
+    (opts.method || '').toUpperCase() + '\n' +
+    opts.resource + '\n' +
+    opts.host.toLowerCase() + '\n' +
+    opts.port + '\n' +
+    (opts.hash || '') + '\n'
+
+  if (opts.ext) {
+    normalized = normalized + opts.ext.replace('\\', '\\\\').replace('\n', '\\n')
+  }
+
+  normalized = normalized + '\n'
+
+  if (opts.app) {
+    normalized = normalized + opts.app + '\n' + (opts.dlg || '') + '\n'
+  }
+
+  var hmac = crypto.createHmac(credentials.algorithm, credentials.key).update(normalized)
+  var digest = hmac.digest('base64')
+  return digest
+}
+
+exports.header = function (uri, method, opts) {
+  var timestamp = opts.timestamp || Math.floor((Date.now() + (opts.localtimeOffsetMsec || 0)) / 1000)
+  var credentials = opts.credentials
+  if (!credentials || !credentials.id || !credentials.key || !credentials.algorithm) {
+    return ''
+  }
+
+  if (['sha1', 'sha256'].indexOf(credentials.algorithm) === -1) {
+    return ''
+  }
+
+  var artifacts = {
+    ts: timestamp,
+    nonce: opts.nonce || randomString(6),
+    method: method,
+    resource: uri.pathname + (uri.search || ''),
+    host: uri.hostname,
+    port: uri.port || (uri.protocol === 'http:' ? 80 : 443),
+    hash: opts.hash,
+    ext: opts.ext,
+    app: opts.app,
+    dlg: opts.dlg
+  }
+
+  if (!artifacts.hash && (opts.payload || opts.payload === '')) {
+    artifacts.hash = calculatePayloadHash(opts.payload, credentials.algorithm, opts.contentType)
+  }
+
+  var mac = exports.calculateMac(credentials, artifacts)
+
+  var hasExt = artifacts.ext !== null && artifacts.ext !== undefined && artifacts.ext !== ''
+  var header = 'Hawk id="' + credentials.id +
+    '", ts="' + artifacts.ts +
+    '", nonce="' + artifacts.nonce +
+    (artifacts.hash ? '", hash="' + artifacts.hash : '') +
+    (hasExt ? '", ext="' + artifacts.ext.replace(/\\/g, '\\\\').replace(/"/g, '\\"') : '') +
+    '", mac="' + mac + '"'
+
+  if (artifacts.app) {
+    header = header + ', app="' + artifacts.app + (artifacts.dlg ? '", dlg="' + artifacts.dlg : '') + '"'
+  }
+
+  return header
+}
+
+},{"crypto":82}],369:[function(require,module,exports){
+(function (process,setImmediate){(function (){
+'use strict'
+
+var jsonSafeStringify = require('json-stringify-safe')
+var crypto = require('crypto')
+var Buffer = require('safe-buffer').Buffer
+
+var defer = typeof setImmediate === 'undefined'
+  ? process.nextTick
+  : setImmediate
+
+function paramsHaveRequestBody (params) {
+  return (
+    params.body ||
+    params.requestBodyStream ||
+    (params.json && typeof params.json !== 'boolean') ||
+    params.multipart
+  )
+}
+
+function safeStringify (obj, replacer) {
+  var ret
+  try {
+    ret = JSON.stringify(obj, replacer)
+  } catch (e) {
+    ret = jsonSafeStringify(obj, replacer)
+  }
+  return ret
+}
+
+function md5 (str) {
+  return crypto.createHash('md5').update(str).digest('hex')
+}
+
+function isReadStream (rs) {
+  return rs.readable && rs.path && rs.mode
+}
+
+function toBase64 (str) {
+  return Buffer.from(str || '', 'utf8').toString('base64')
+}
+
+function copy (obj) {
+  var o = {}
+  Object.keys(obj).forEach(function (i) {
+    o[i] = obj[i]
+  })
+  return o
+}
+
+function version () {
+  var numbers = process.version.replace('v', '').split('.')
+  return {
+    major: parseInt(numbers[0], 10),
+    minor: parseInt(numbers[1], 10),
+    patch: parseInt(numbers[2], 10)
+  }
+}
+
+exports.paramsHaveRequestBody = paramsHaveRequestBody
+exports.safeStringify = safeStringify
+exports.md5 = md5
+exports.isReadStream = isReadStream
+exports.toBase64 = toBase64
+exports.copy = copy
+exports.version = version
+exports.defer = defer
+
+}).call(this)}).call(this,require('_process'),require("timers").setImmediate)
+},{"_process":188,"crypto":82,"json-stringify-safe":354,"safe-buffer":381,"timers":248}],370:[function(require,module,exports){
+'use strict'
+
+var uuid = require('uuid/v4')
+var CombinedStream = require('combined-stream')
+var isstream = require('isstream')
+var Buffer = require('safe-buffer').Buffer
+
+function Multipart (request) {
+  this.request = request
+  this.boundary = uuid()
+  this.chunked = false
+  this.body = null
+}
+
+Multipart.prototype.isChunked = function (options) {
+  var self = this
+  var chunked = false
+  var parts = options.data || options
+
+  if (!parts.forEach) {
+    self.request.emit('error', new Error('Argument error, options.multipart.'))
+  }
+
+  if (options.chunked !== undefined) {
+    chunked = options.chunked
+  }
+
+  if (self.request.getHeader('transfer-encoding') === 'chunked') {
+    chunked = true
+  }
+
+  if (!chunked) {
+    parts.forEach(function (part) {
+      if (typeof part.body === 'undefined') {
+        self.request.emit('error', new Error('Body attribute missing in multipart.'))
+      }
+      if (isstream(part.body)) {
+        chunked = true
+      }
+    })
+  }
+
+  return chunked
+}
+
+Multipart.prototype.setHeaders = function (chunked) {
+  var self = this
+
+  if (chunked && !self.request.hasHeader('transfer-encoding')) {
+    self.request.setHeader('transfer-encoding', 'chunked')
+  }
+
+  var header = self.request.getHeader('content-type')
+
+  if (!header || header.indexOf('multipart') === -1) {
+    self.request.setHeader('content-type', 'multipart/related; boundary=' + self.boundary)
+  } else {
+    if (header.indexOf('boundary') !== -1) {
+      self.boundary = header.replace(/.*boundary=([^\s;]+).*/, '$1')
+    } else {
+      self.request.setHeader('content-type', header + '; boundary=' + self.boundary)
+    }
+  }
+}
+
+Multipart.prototype.build = function (parts, chunked) {
+  var self = this
+  var body = chunked ? new CombinedStream() : []
+
+  function add (part) {
+    if (typeof part === 'number') {
+      part = part.toString()
+    }
+    return chunked ? body.append(part) : body.push(Buffer.from(part))
+  }
+
+  if (self.request.preambleCRLF) {
+    add('\r\n')
+  }
+
+  parts.forEach(function (part) {
+    var preamble = '--' + self.boundary + '\r\n'
+    Object.keys(part).forEach(function (key) {
+      if (key === 'body') { return }
+      preamble += key + ': ' + part[key] + '\r\n'
+    })
+    preamble += '\r\n'
+    add(preamble)
+    add(part.body)
+    add('\r\n')
+  })
+  add('--' + self.boundary + '--')
+
+  if (self.request.postambleCRLF) {
+    add('\r\n')
+  }
+
+  return body
+}
+
+Multipart.prototype.onRequest = function (options) {
+  var self = this
+
+  var chunked = self.isChunked(options)
+  var parts = options.data || options
+
+  self.setHeaders(chunked)
+  self.chunked = chunked
+  self.body = self.build(parts, chunked)
+}
+
+exports.Multipart = Multipart
+
+},{"combined-stream":312,"isstream":350,"safe-buffer":381,"uuid/v4":420}],371:[function(require,module,exports){
+'use strict'
+
+var url = require('url')
+var qs = require('qs')
+var caseless = require('caseless')
+var uuid = require('uuid/v4')
+var oauth = require('oauth-sign')
+var crypto = require('crypto')
+var Buffer = require('safe-buffer').Buffer
+
+function OAuth (request) {
+  this.request = request
+  this.params = null
+}
+
+OAuth.prototype.buildParams = function (_oauth, uri, method, query, form, qsLib) {
+  var oa = {}
+  for (var i in _oauth) {
+    oa['oauth_' + i] = _oauth[i]
+  }
+  if (!oa.oauth_version) {
+    oa.oauth_version = '1.0'
+  }
+  if (!oa.oauth_timestamp) {
+    oa.oauth_timestamp = Math.floor(Date.now() / 1000).toString()
+  }
+  if (!oa.oauth_nonce) {
+    oa.oauth_nonce = uuid().replace(/-/g, '')
+  }
+  if (!oa.oauth_signature_method) {
+    oa.oauth_signature_method = 'HMAC-SHA1'
+  }
+
+  var consumer_secret_or_private_key = oa.oauth_consumer_secret || oa.oauth_private_key // eslint-disable-line camelcase
+  delete oa.oauth_consumer_secret
+  delete oa.oauth_private_key
+
+  var token_secret = oa.oauth_token_secret // eslint-disable-line camelcase
+  delete oa.oauth_token_secret
+
+  var realm = oa.oauth_realm
+  delete oa.oauth_realm
+  delete oa.oauth_transport_method
+
+  var baseurl = uri.protocol + '//' + uri.host + uri.pathname
+  var params = qsLib.parse([].concat(query, form, qsLib.stringify(oa)).join('&'))
+
+  oa.oauth_signature = oauth.sign(
+    oa.oauth_signature_method,
+    method,
+    baseurl,
+    params,
+    consumer_secret_or_private_key, // eslint-disable-line camelcase
+    token_secret // eslint-disable-line camelcase
+  )
+
+  if (realm) {
+    oa.realm = realm
+  }
+
+  return oa
+}
+
+OAuth.prototype.buildBodyHash = function (_oauth, body) {
+  if (['HMAC-SHA1', 'RSA-SHA1'].indexOf(_oauth.signature_method || 'HMAC-SHA1') < 0) {
+    this.request.emit('error', new Error('oauth: ' + _oauth.signature_method +
+      ' signature_method not supported with body_hash signing.'))
+  }
+
+  var shasum = crypto.createHash('sha1')
+  shasum.update(body || '')
+  var sha1 = shasum.digest('hex')
+
+  return Buffer.from(sha1, 'hex').toString('base64')
+}
+
+OAuth.prototype.concatParams = function (oa, sep, wrap) {
+  wrap = wrap || ''
+
+  var params = Object.keys(oa).filter(function (i) {
+    return i !== 'realm' && i !== 'oauth_signature'
+  }).sort()
+
+  if (oa.realm) {
+    params.splice(0, 0, 'realm')
+  }
+  params.push('oauth_signature')
+
+  return params.map(function (i) {
+    return i + '=' + wrap + oauth.rfc3986(oa[i]) + wrap
+  }).join(sep)
+}
+
+OAuth.prototype.onRequest = function (_oauth) {
+  var self = this
+  self.params = _oauth
+
+  var uri = self.request.uri || {}
+  var method = self.request.method || ''
+  var headers = caseless(self.request.headers)
+  var body = self.request.body || ''
+  var qsLib = self.request.qsLib || qs
+
+  var form
+  var query
+  var contentType = headers.get('content-type') || ''
+  var formContentType = 'application/x-www-form-urlencoded'
+  var transport = _oauth.transport_method || 'header'
+
+  if (contentType.slice(0, formContentType.length) === formContentType) {
+    contentType = formContentType
+    form = body
+  }
+  if (uri.query) {
+    query = uri.query
+  }
+  if (transport === 'body' && (method !== 'POST' || contentType !== formContentType)) {
+    self.request.emit('error', new Error('oauth: transport_method of body requires POST ' +
+      'and content-type ' + formContentType))
+  }
+
+  if (!form && typeof _oauth.body_hash === 'boolean') {
+    _oauth.body_hash = self.buildBodyHash(_oauth, self.request.body.toString())
+  }
+
+  var oa = self.buildParams(_oauth, uri, method, query, form, qsLib)
+
+  switch (transport) {
+    case 'header':
+      self.request.setHeader('Authorization', 'OAuth ' + self.concatParams(oa, ',', '"'))
+      break
+
+    case 'query':
+      var href = self.request.uri.href += (query ? '&' : '?') + self.concatParams(oa, '&')
+      self.request.uri = url.parse(href)
+      self.request.path = self.request.uri.path
+      break
+
+    case 'body':
+      self.request.body = (form ? form + '&' : '') + self.concatParams(oa, '&')
+      break
+
+    default:
+      self.request.emit('error', new Error('oauth: transport_method invalid'))
+  }
+}
+
+exports.OAuth = OAuth
+
+},{"caseless":311,"crypto":82,"oauth-sign":359,"qs":376,"safe-buffer":381,"url":249,"uuid/v4":420}],372:[function(require,module,exports){
+'use strict'
+
+var qs = require('qs')
+var querystring = require('querystring')
+
+function Querystring (request) {
+  this.request = request
+  this.lib = null
+  this.useQuerystring = null
+  this.parseOptions = null
+  this.stringifyOptions = null
+}
+
+Querystring.prototype.init = function (options) {
+  if (this.lib) { return }
+
+  this.useQuerystring = options.useQuerystring
+  this.lib = (this.useQuerystring ? querystring : qs)
+
+  this.parseOptions = options.qsParseOptions || {}
+  this.stringifyOptions = options.qsStringifyOptions || {}
+}
+
+Querystring.prototype.stringify = function (obj) {
+  return (this.useQuerystring)
+    ? this.rfc3986(this.lib.stringify(obj,
+      this.stringifyOptions.sep || null,
+      this.stringifyOptions.eq || null,
+      this.stringifyOptions))
+    : this.lib.stringify(obj, this.stringifyOptions)
+}
+
+Querystring.prototype.parse = function (str) {
+  return (this.useQuerystring)
+    ? this.lib.parse(str,
+      this.parseOptions.sep || null,
+      this.parseOptions.eq || null,
+      this.parseOptions)
+    : this.lib.parse(str, this.parseOptions)
+}
+
+Querystring.prototype.rfc3986 = function (str) {
+  return str.replace(/[!'()*]/g, function (c) {
+    return '%' + c.charCodeAt(0).toString(16).toUpperCase()
+  })
+}
+
+Querystring.prototype.unescape = querystring.unescape
+
+exports.Querystring = Querystring
+
+},{"qs":376,"querystring":199}],373:[function(require,module,exports){
+'use strict'
+
+var url = require('url')
+var isUrl = /^https?:/
+
+function Redirect (request) {
+  this.request = request
+  this.followRedirect = true
+  this.followRedirects = true
+  this.followAllRedirects = false
+  this.followOriginalHttpMethod = false
+  this.allowRedirect = function () { return true }
+  this.maxRedirects = 10
+  this.redirects = []
+  this.redirectsFollowed = 0
+  this.removeRefererHeader = false
+}
+
+Redirect.prototype.onRequest = function (options) {
+  var self = this
+
+  if (options.maxRedirects !== undefined) {
+    self.maxRedirects = options.maxRedirects
+  }
+  if (typeof options.followRedirect === 'function') {
+    self.allowRedirect = options.followRedirect
+  }
+  if (options.followRedirect !== undefined) {
+    self.followRedirects = !!options.followRedirect
+  }
+  if (options.followAllRedirects !== undefined) {
+    self.followAllRedirects = options.followAllRedirects
+  }
+  if (self.followRedirects || self.followAllRedirects) {
+    self.redirects = self.redirects || []
+  }
+  if (options.removeRefererHeader !== undefined) {
+    self.removeRefererHeader = options.removeRefererHeader
+  }
+  if (options.followOriginalHttpMethod !== undefined) {
+    self.followOriginalHttpMethod = options.followOriginalHttpMethod
+  }
+}
+
+Redirect.prototype.redirectTo = function (response) {
+  var self = this
+  var request = self.request
+
+  var redirectTo = null
+  if (response.statusCode >= 300 && response.statusCode < 400 && response.caseless.has('location')) {
+    var location = response.caseless.get('location')
+    request.debug('redirect', location)
+
+    if (self.followAllRedirects) {
+      redirectTo = location
+    } else if (self.followRedirects) {
+      switch (request.method) {
+        case 'PATCH':
+        case 'PUT':
+        case 'POST':
+        case 'DELETE':
+          // Do not follow redirects
+          break
+        default:
+          redirectTo = location
+          break
+      }
+    }
+  } else if (response.statusCode === 401) {
+    var authHeader = request._auth.onResponse(response)
+    if (authHeader) {
+      request.setHeader('authorization', authHeader)
+      redirectTo = request.uri
+    }
+  }
+  return redirectTo
+}
+
+Redirect.prototype.onResponse = function (response) {
+  var self = this
+  var request = self.request
+
+  var redirectTo = self.redirectTo(response)
+  if (!redirectTo || !self.allowRedirect.call(request, response)) {
+    return false
+  }
+
+  request.debug('redirect to', redirectTo)
+
+  // ignore any potential response body.  it cannot possibly be useful
+  // to us at this point.
+  // response.resume should be defined, but check anyway before calling. Workaround for browserify.
+  if (response.resume) {
+    response.resume()
+  }
+
+  if (self.redirectsFollowed >= self.maxRedirects) {
+    request.emit('error', new Error('Exceeded maxRedirects. Probably stuck in a redirect loop ' + request.uri.href))
+    return false
+  }
+  self.redirectsFollowed += 1
+
+  if (!isUrl.test(redirectTo)) {
+    redirectTo = url.resolve(request.uri.href, redirectTo)
+  }
+
+  var uriPrev = request.uri
+  request.uri = url.parse(redirectTo)
+
+  // handle the case where we change protocol from https to http or vice versa
+  if (request.uri.protocol !== uriPrev.protocol) {
+    delete request.agent
+  }
+
+  self.redirects.push({ statusCode: response.statusCode, redirectUri: redirectTo })
+
+  if (self.followAllRedirects && request.method !== 'HEAD' &&
+    response.statusCode !== 401 && response.statusCode !== 307) {
+    request.method = self.followOriginalHttpMethod ? request.method : 'GET'
+  }
+  // request.method = 'GET' // Force all redirects to use GET || commented out fixes #215
+  delete request.src
+  delete request.req
+  delete request._started
+  if (response.statusCode !== 401 && response.statusCode !== 307) {
+    // Remove parameters from the previous response, unless this is the second request
+    // for a server that requires digest authentication.
+    delete request.body
+    delete request._form
+    if (request.headers) {
+      request.removeHeader('host')
+      request.removeHeader('content-type')
+      request.removeHeader('content-length')
+      if (request.uri.hostname !== request.originalHost.split(':')[0]) {
+        // Remove authorization if changing hostnames (but not if just
+        // changing ports or protocols).  This matches the behavior of curl:
+        // https://github.com/bagder/curl/blob/6beb0eee/lib/http.c#L710
+        request.removeHeader('authorization')
+      }
+    }
+  }
+
+  if (!self.removeRefererHeader) {
+    request.setHeader('referer', uriPrev.href)
+  }
+
+  request.emit('redirect')
+
+  request.init()
+
+  return true
+}
+
+exports.Redirect = Redirect
+
+},{"url":249}],374:[function(require,module,exports){
+'use strict'
+
+var url = require('url')
+var tunnel = require('tunnel-agent')
+
+var defaultProxyHeaderWhiteList = [
+  'accept',
+  'accept-charset',
+  'accept-encoding',
+  'accept-language',
+  'accept-ranges',
+  'cache-control',
+  'content-encoding',
+  'content-language',
+  'content-location',
+  'content-md5',
+  'content-range',
+  'content-type',
+  'connection',
+  'date',
+  'expect',
+  'max-forwards',
+  'pragma',
+  'referer',
+  'te',
+  'user-agent',
+  'via'
+]
+
+var defaultProxyHeaderExclusiveList = [
+  'proxy-authorization'
+]
+
+function constructProxyHost (uriObject) {
+  var port = uriObject.port
+  var protocol = uriObject.protocol
+  var proxyHost = uriObject.hostname + ':'
+
+  if (port) {
+    proxyHost += port
+  } else if (protocol === 'https:') {
+    proxyHost += '443'
+  } else {
+    proxyHost += '80'
+  }
+
+  return proxyHost
+}
+
+function constructProxyHeaderWhiteList (headers, proxyHeaderWhiteList) {
+  var whiteList = proxyHeaderWhiteList
+    .reduce(function (set, header) {
+      set[header.toLowerCase()] = true
+      return set
+    }, {})
+
+  return Object.keys(headers)
+    .filter(function (header) {
+      return whiteList[header.toLowerCase()]
+    })
+    .reduce(function (set, header) {
+      set[header] = headers[header]
+      return set
+    }, {})
+}
+
+function constructTunnelOptions (request, proxyHeaders) {
+  var proxy = request.proxy
+
+  var tunnelOptions = {
+    proxy: {
+      host: proxy.hostname,
+      port: +proxy.port,
+      proxyAuth: proxy.auth,
+      headers: proxyHeaders
+    },
+    headers: request.headers,
+    ca: request.ca,
+    cert: request.cert,
+    key: request.key,
+    passphrase: request.passphrase,
+    pfx: request.pfx,
+    ciphers: request.ciphers,
+    rejectUnauthorized: request.rejectUnauthorized,
+    secureOptions: request.secureOptions,
+    secureProtocol: request.secureProtocol
+  }
+
+  return tunnelOptions
+}
+
+function constructTunnelFnName (uri, proxy) {
+  var uriProtocol = (uri.protocol === 'https:' ? 'https' : 'http')
+  var proxyProtocol = (proxy.protocol === 'https:' ? 'Https' : 'Http')
+  return [uriProtocol, proxyProtocol].join('Over')
+}
+
+function getTunnelFn (request) {
+  var uri = request.uri
+  var proxy = request.proxy
+  var tunnelFnName = constructTunnelFnName(uri, proxy)
+  return tunnel[tunnelFnName]
+}
+
+function Tunnel (request) {
+  this.request = request
+  this.proxyHeaderWhiteList = defaultProxyHeaderWhiteList
+  this.proxyHeaderExclusiveList = []
+  if (typeof request.tunnel !== 'undefined') {
+    this.tunnelOverride = request.tunnel
+  }
+}
+
+Tunnel.prototype.isEnabled = function () {
+  var self = this
+  var request = self.request
+    // Tunnel HTTPS by default. Allow the user to override this setting.
+
+  // If self.tunnelOverride is set (the user specified a value), use it.
+  if (typeof self.tunnelOverride !== 'undefined') {
+    return self.tunnelOverride
+  }
+
+  // If the destination is HTTPS, tunnel.
+  if (request.uri.protocol === 'https:') {
+    return true
+  }
+
+  // Otherwise, do not use tunnel.
+  return false
+}
+
+Tunnel.prototype.setup = function (options) {
+  var self = this
+  var request = self.request
+
+  options = options || {}
+
+  if (typeof request.proxy === 'string') {
+    request.proxy = url.parse(request.proxy)
+  }
+
+  if (!request.proxy || !request.tunnel) {
+    return false
+  }
+
+  // Setup Proxy Header Exclusive List and White List
+  if (options.proxyHeaderWhiteList) {
+    self.proxyHeaderWhiteList = options.proxyHeaderWhiteList
+  }
+  if (options.proxyHeaderExclusiveList) {
+    self.proxyHeaderExclusiveList = options.proxyHeaderExclusiveList
+  }
+
+  var proxyHeaderExclusiveList = self.proxyHeaderExclusiveList.concat(defaultProxyHeaderExclusiveList)
+  var proxyHeaderWhiteList = self.proxyHeaderWhiteList.concat(proxyHeaderExclusiveList)
+
+  // Setup Proxy Headers and Proxy Headers Host
+  // Only send the Proxy White Listed Header names
+  var proxyHeaders = constructProxyHeaderWhiteList(request.headers, proxyHeaderWhiteList)
+  proxyHeaders.host = constructProxyHost(request.uri)
+
+  proxyHeaderExclusiveList.forEach(request.removeHeader, request)
+
+  // Set Agent from Tunnel Data
+  var tunnelFn = getTunnelFn(request)
+  var tunnelOptions = constructTunnelOptions(request, proxyHeaders)
+  request.agent = tunnelFn(tunnelOptions)
+
+  return true
+}
+
+Tunnel.defaultProxyHeaderWhiteList = defaultProxyHeaderWhiteList
+Tunnel.defaultProxyHeaderExclusiveList = defaultProxyHeaderExclusiveList
+exports.Tunnel = Tunnel
+
+},{"tunnel-agent":415,"url":249}],375:[function(require,module,exports){
 'use strict';
 
 var replace = String.prototype.replace;
@@ -74320,7 +73497,7 @@ module.exports = {
     RFC3986: 'RFC3986'
 };
 
-},{}],367:[function(require,module,exports){
+},{}],376:[function(require,module,exports){
 'use strict';
 
 var stringify = require('./stringify');
@@ -74333,7 +73510,7 @@ module.exports = {
     stringify: stringify
 };
 
-},{"./formats":366,"./parse":368,"./stringify":369}],368:[function(require,module,exports){
+},{"./formats":375,"./parse":377,"./stringify":378}],377:[function(require,module,exports){
 'use strict';
 
 var utils = require('./utils');
@@ -74510,7 +73687,7 @@ module.exports = function (str, opts) {
     return utils.compact(obj);
 };
 
-},{"./utils":370}],369:[function(require,module,exports){
+},{"./utils":379}],378:[function(require,module,exports){
 'use strict';
 
 var utils = require('./utils');
@@ -74729,7 +73906,7 @@ module.exports = function (object, opts) {
     return joined.length > 0 ? prefix + joined : '';
 };
 
-},{"./formats":366,"./utils":370}],370:[function(require,module,exports){
+},{"./formats":375,"./utils":379}],379:[function(require,module,exports){
 'use strict';
 
 var has = Object.prototype.hasOwnProperty;
@@ -74946,1473 +74123,7 @@ module.exports = {
     merge: merge
 };
 
-},{}],371:[function(require,module,exports){
-// Copyright 2010-2012 Mikeal Rogers
-//
-//    Licensed under the Apache License, Version 2.0 (the "License");
-//    you may not use this file except in compliance with the License.
-//    You may obtain a copy of the License at
-//
-//        http://www.apache.org/licenses/LICENSE-2.0
-//
-//    Unless required by applicable law or agreed to in writing, software
-//    distributed under the License is distributed on an "AS IS" BASIS,
-//    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//    See the License for the specific language governing permissions and
-//    limitations under the License.
-
-'use strict'
-
-var extend = require('extend')
-var cookies = require('./lib/cookies')
-var helpers = require('./lib/helpers')
-
-var paramsHaveRequestBody = helpers.paramsHaveRequestBody
-
-// organize params for patch, post, put, head, del
-function initParams (uri, options, callback) {
-  if (typeof options === 'function') {
-    callback = options
-  }
-
-  var params = {}
-  if (options !== null && typeof options === 'object') {
-    extend(params, options, {uri: uri})
-  } else if (typeof uri === 'string') {
-    extend(params, {uri: uri})
-  } else {
-    extend(params, uri)
-  }
-
-  params.callback = callback || params.callback
-  return params
-}
-
-function request (uri, options, callback) {
-  if (typeof uri === 'undefined') {
-    throw new Error('undefined is not a valid uri or options object.')
-  }
-
-  var params = initParams(uri, options, callback)
-
-  if (params.method === 'HEAD' && paramsHaveRequestBody(params)) {
-    throw new Error('HTTP HEAD requests MUST NOT include a request body.')
-  }
-
-  return new request.Request(params)
-}
-
-function verbFunc (verb) {
-  var method = verb.toUpperCase()
-  return function (uri, options, callback) {
-    var params = initParams(uri, options, callback)
-    params.method = method
-    return request(params, params.callback)
-  }
-}
-
-// define like this to please codeintel/intellisense IDEs
-request.get = verbFunc('get')
-request.head = verbFunc('head')
-request.options = verbFunc('options')
-request.post = verbFunc('post')
-request.put = verbFunc('put')
-request.patch = verbFunc('patch')
-request.del = verbFunc('delete')
-request['delete'] = verbFunc('delete')
-
-request.jar = function (store) {
-  return cookies.jar(store)
-}
-
-request.cookie = function (str) {
-  return cookies.parse(str)
-}
-
-function wrapRequestMethod (method, options, requester, verb) {
-  return function (uri, opts, callback) {
-    var params = initParams(uri, opts, callback)
-
-    var target = {}
-    extend(true, target, options, params)
-
-    target.pool = params.pool || options.pool
-
-    if (verb) {
-      target.method = verb.toUpperCase()
-    }
-
-    if (typeof requester === 'function') {
-      method = requester
-    }
-
-    return method(target, target.callback)
-  }
-}
-
-request.defaults = function (options, requester) {
-  var self = this
-
-  options = options || {}
-
-  if (typeof options === 'function') {
-    requester = options
-    options = {}
-  }
-
-  var defaults = wrapRequestMethod(self, options, requester)
-
-  var verbs = ['get', 'head', 'post', 'put', 'patch', 'del', 'delete']
-  verbs.forEach(function (verb) {
-    defaults[verb] = wrapRequestMethod(self[verb], options, requester, verb)
-  })
-
-  defaults.cookie = wrapRequestMethod(self.cookie, options, requester)
-  defaults.jar = self.jar
-  defaults.defaults = self.defaults
-  return defaults
-}
-
-request.forever = function (agentOptions, optionsArg) {
-  var options = {}
-  if (optionsArg) {
-    extend(options, optionsArg)
-  }
-  if (agentOptions) {
-    options.agentOptions = agentOptions
-  }
-
-  options.forever = true
-  return request.defaults(options)
-}
-
-// Exports
-
-module.exports = request
-request.Request = require('./request')
-request.initParams = initParams
-
-// Backwards compatibility for request.debug
-Object.defineProperty(request, 'debug', {
-  enumerable: true,
-  get: function () {
-    return request.Request.debug
-  },
-  set: function (debug) {
-    request.Request.debug = debug
-  }
-})
-
-},{"./lib/cookies":373,"./lib/helpers":377,"./request":383,"extend":320}],372:[function(require,module,exports){
-'use strict'
-
-var caseless = require('caseless')
-var uuid = require('uuid/v4')
-var helpers = require('./helpers')
-
-var md5 = helpers.md5
-var toBase64 = helpers.toBase64
-
-function Auth (request) {
-  // define all public properties here
-  this.request = request
-  this.hasAuth = false
-  this.sentAuth = false
-  this.bearerToken = null
-  this.user = null
-  this.pass = null
-}
-
-Auth.prototype.basic = function (user, pass, sendImmediately) {
-  var self = this
-  if (typeof user !== 'string' || (pass !== undefined && typeof pass !== 'string')) {
-    self.request.emit('error', new Error('auth() received invalid user or password'))
-  }
-  self.user = user
-  self.pass = pass
-  self.hasAuth = true
-  var header = user + ':' + (pass || '')
-  if (sendImmediately || typeof sendImmediately === 'undefined') {
-    var authHeader = 'Basic ' + toBase64(header)
-    self.sentAuth = true
-    return authHeader
-  }
-}
-
-Auth.prototype.bearer = function (bearer, sendImmediately) {
-  var self = this
-  self.bearerToken = bearer
-  self.hasAuth = true
-  if (sendImmediately || typeof sendImmediately === 'undefined') {
-    if (typeof bearer === 'function') {
-      bearer = bearer()
-    }
-    var authHeader = 'Bearer ' + (bearer || '')
-    self.sentAuth = true
-    return authHeader
-  }
-}
-
-Auth.prototype.digest = function (method, path, authHeader) {
-  // TODO: More complete implementation of RFC 2617.
-  //   - handle challenge.domain
-  //   - support qop="auth-int" only
-  //   - handle Authentication-Info (not necessarily?)
-  //   - check challenge.stale (not necessarily?)
-  //   - increase nc (not necessarily?)
-  // For reference:
-  // http://tools.ietf.org/html/rfc2617#section-3
-  // https://github.com/bagder/curl/blob/master/lib/http_digest.c
-
-  var self = this
-
-  var challenge = {}
-  var re = /([a-z0-9_-]+)=(?:"([^"]+)"|([a-z0-9_-]+))/gi
-  while (true) {
-    var match = re.exec(authHeader)
-    if (!match) {
-      break
-    }
-    challenge[match[1]] = match[2] || match[3]
-  }
-
-  /**
-   * RFC 2617: handle both MD5 and MD5-sess algorithms.
-   *
-   * If the algorithm directive's value is "MD5" or unspecified, then HA1 is
-   *   HA1=MD5(username:realm:password)
-   * If the algorithm directive's value is "MD5-sess", then HA1 is
-   *   HA1=MD5(MD5(username:realm:password):nonce:cnonce)
-   */
-  var ha1Compute = function (algorithm, user, realm, pass, nonce, cnonce) {
-    var ha1 = md5(user + ':' + realm + ':' + pass)
-    if (algorithm && algorithm.toLowerCase() === 'md5-sess') {
-      return md5(ha1 + ':' + nonce + ':' + cnonce)
-    } else {
-      return ha1
-    }
-  }
-
-  var qop = /(^|,)\s*auth\s*($|,)/.test(challenge.qop) && 'auth'
-  var nc = qop && '00000001'
-  var cnonce = qop && uuid().replace(/-/g, '')
-  var ha1 = ha1Compute(challenge.algorithm, self.user, challenge.realm, self.pass, challenge.nonce, cnonce)
-  var ha2 = md5(method + ':' + path)
-  var digestResponse = qop
-    ? md5(ha1 + ':' + challenge.nonce + ':' + nc + ':' + cnonce + ':' + qop + ':' + ha2)
-    : md5(ha1 + ':' + challenge.nonce + ':' + ha2)
-  var authValues = {
-    username: self.user,
-    realm: challenge.realm,
-    nonce: challenge.nonce,
-    uri: path,
-    qop: qop,
-    response: digestResponse,
-    nc: nc,
-    cnonce: cnonce,
-    algorithm: challenge.algorithm,
-    opaque: challenge.opaque
-  }
-
-  authHeader = []
-  for (var k in authValues) {
-    if (authValues[k]) {
-      if (k === 'qop' || k === 'nc' || k === 'algorithm') {
-        authHeader.push(k + '=' + authValues[k])
-      } else {
-        authHeader.push(k + '="' + authValues[k] + '"')
-      }
-    }
-  }
-  authHeader = 'Digest ' + authHeader.join(', ')
-  self.sentAuth = true
-  return authHeader
-}
-
-Auth.prototype.onRequest = function (user, pass, sendImmediately, bearer) {
-  var self = this
-  var request = self.request
-
-  var authHeader
-  if (bearer === undefined && user === undefined) {
-    self.request.emit('error', new Error('no auth mechanism defined'))
-  } else if (bearer !== undefined) {
-    authHeader = self.bearer(bearer, sendImmediately)
-  } else {
-    authHeader = self.basic(user, pass, sendImmediately)
-  }
-  if (authHeader) {
-    request.setHeader('authorization', authHeader)
-  }
-}
-
-Auth.prototype.onResponse = function (response) {
-  var self = this
-  var request = self.request
-
-  if (!self.hasAuth || self.sentAuth) { return null }
-
-  var c = caseless(response.headers)
-
-  var authHeader = c.get('www-authenticate')
-  var authVerb = authHeader && authHeader.split(' ')[0].toLowerCase()
-  request.debug('reauth', authVerb)
-
-  switch (authVerb) {
-    case 'basic':
-      return self.basic(self.user, self.pass, true)
-
-    case 'bearer':
-      return self.bearer(self.bearerToken, true)
-
-    case 'digest':
-      return self.digest(request.method, request.path, authHeader)
-  }
-}
-
-exports.Auth = Auth
-
-},{"./helpers":377,"caseless":313,"uuid/v4":423}],373:[function(require,module,exports){
-'use strict'
-
-var tough = require('tough-cookie')
-
-var Cookie = tough.Cookie
-var CookieJar = tough.CookieJar
-
-exports.parse = function (str) {
-  if (str && str.uri) {
-    str = str.uri
-  }
-  if (typeof str !== 'string') {
-    throw new Error('The cookie function only accepts STRING as param')
-  }
-  return Cookie.parse(str, {loose: true})
-}
-
-// Adapt the sometimes-Async api of tough.CookieJar to our requirements
-function RequestJar (store) {
-  var self = this
-  self._jar = new CookieJar(store, {looseMode: true})
-}
-RequestJar.prototype.setCookie = function (cookieOrStr, uri, options) {
-  var self = this
-  return self._jar.setCookieSync(cookieOrStr, uri, options || {})
-}
-RequestJar.prototype.getCookieString = function (uri) {
-  var self = this
-  return self._jar.getCookieStringSync(uri)
-}
-RequestJar.prototype.getCookies = function (uri) {
-  var self = this
-  return self._jar.getCookiesSync(uri)
-}
-
-exports.jar = function (store) {
-  return new RequestJar(store)
-}
-
-},{"tough-cookie":411}],374:[function(require,module,exports){
-(function (process){(function (){
-'use strict'
-
-function formatHostname (hostname) {
-  // canonicalize the hostname, so that 'oogle.com' won't match 'google.com'
-  return hostname.replace(/^\.*/, '.').toLowerCase()
-}
-
-function parseNoProxyZone (zone) {
-  zone = zone.trim().toLowerCase()
-
-  var zoneParts = zone.split(':', 2)
-  var zoneHost = formatHostname(zoneParts[0])
-  var zonePort = zoneParts[1]
-  var hasPort = zone.indexOf(':') > -1
-
-  return {hostname: zoneHost, port: zonePort, hasPort: hasPort}
-}
-
-function uriInNoProxy (uri, noProxy) {
-  var port = uri.port || (uri.protocol === 'https:' ? '443' : '80')
-  var hostname = formatHostname(uri.hostname)
-  var noProxyList = noProxy.split(',')
-
-  // iterate through the noProxyList until it finds a match.
-  return noProxyList.map(parseNoProxyZone).some(function (noProxyZone) {
-    var isMatchedAt = hostname.indexOf(noProxyZone.hostname)
-    var hostnameMatched = (
-      isMatchedAt > -1 &&
-        (isMatchedAt === hostname.length - noProxyZone.hostname.length)
-    )
-
-    if (noProxyZone.hasPort) {
-      return (port === noProxyZone.port) && hostnameMatched
-    }
-
-    return hostnameMatched
-  })
-}
-
-function getProxyFromURI (uri) {
-  // Decide the proper request proxy to use based on the request URI object and the
-  // environmental variables (NO_PROXY, HTTP_PROXY, etc.)
-  // respect NO_PROXY environment variables (see: https://lynx.invisible-island.net/lynx2.8.7/breakout/lynx_help/keystrokes/environments.html)
-
-  var noProxy = process.env.NO_PROXY || process.env.no_proxy || ''
-
-  // if the noProxy is a wildcard then return null
-
-  if (noProxy === '*') {
-    return null
-  }
-
-  // if the noProxy is not empty and the uri is found return null
-
-  if (noProxy !== '' && uriInNoProxy(uri, noProxy)) {
-    return null
-  }
-
-  // Check for HTTP or HTTPS Proxy in environment Else default to null
-
-  if (uri.protocol === 'http:') {
-    return process.env.HTTP_PROXY ||
-      process.env.http_proxy || null
-  }
-
-  if (uri.protocol === 'https:') {
-    return process.env.HTTPS_PROXY ||
-      process.env.https_proxy ||
-      process.env.HTTP_PROXY ||
-      process.env.http_proxy || null
-  }
-
-  // if none of that works, return null
-  // (What uri protocol are you using then?)
-
-  return null
-}
-
-module.exports = getProxyFromURI
-
-}).call(this)}).call(this,require('_process'))
-},{"_process":188}],375:[function(require,module,exports){
-'use strict'
-
-var fs = require('fs')
-var qs = require('querystring')
-var validate = require('har-validator')
-var extend = require('extend')
-
-function Har (request) {
-  this.request = request
-}
-
-Har.prototype.reducer = function (obj, pair) {
-  // new property ?
-  if (obj[pair.name] === undefined) {
-    obj[pair.name] = pair.value
-    return obj
-  }
-
-  // existing? convert to array
-  var arr = [
-    obj[pair.name],
-    pair.value
-  ]
-
-  obj[pair.name] = arr
-
-  return obj
-}
-
-Har.prototype.prep = function (data) {
-  // construct utility properties
-  data.queryObj = {}
-  data.headersObj = {}
-  data.postData.jsonObj = false
-  data.postData.paramsObj = false
-
-  // construct query objects
-  if (data.queryString && data.queryString.length) {
-    data.queryObj = data.queryString.reduce(this.reducer, {})
-  }
-
-  // construct headers objects
-  if (data.headers && data.headers.length) {
-    // loweCase header keys
-    data.headersObj = data.headers.reduceRight(function (headers, header) {
-      headers[header.name] = header.value
-      return headers
-    }, {})
-  }
-
-  // construct Cookie header
-  if (data.cookies && data.cookies.length) {
-    var cookies = data.cookies.map(function (cookie) {
-      return cookie.name + '=' + cookie.value
-    })
-
-    if (cookies.length) {
-      data.headersObj.cookie = cookies.join('; ')
-    }
-  }
-
-  // prep body
-  function some (arr) {
-    return arr.some(function (type) {
-      return data.postData.mimeType.indexOf(type) === 0
-    })
-  }
-
-  if (some([
-    'multipart/mixed',
-    'multipart/related',
-    'multipart/form-data',
-    'multipart/alternative'])) {
-    // reset values
-    data.postData.mimeType = 'multipart/form-data'
-  } else if (some([
-    'application/x-www-form-urlencoded'])) {
-    if (!data.postData.params) {
-      data.postData.text = ''
-    } else {
-      data.postData.paramsObj = data.postData.params.reduce(this.reducer, {})
-
-      // always overwrite
-      data.postData.text = qs.stringify(data.postData.paramsObj)
-    }
-  } else if (some([
-    'text/json',
-    'text/x-json',
-    'application/json',
-    'application/x-json'])) {
-    data.postData.mimeType = 'application/json'
-
-    if (data.postData.text) {
-      try {
-        data.postData.jsonObj = JSON.parse(data.postData.text)
-      } catch (e) {
-        this.request.debug(e)
-
-        // force back to text/plain
-        data.postData.mimeType = 'text/plain'
-      }
-    }
-  }
-
-  return data
-}
-
-Har.prototype.options = function (options) {
-  // skip if no har property defined
-  if (!options.har) {
-    return options
-  }
-
-  var har = {}
-  extend(har, options.har)
-
-  // only process the first entry
-  if (har.log && har.log.entries) {
-    har = har.log.entries[0]
-  }
-
-  // add optional properties to make validation successful
-  har.url = har.url || options.url || options.uri || options.baseUrl || '/'
-  har.httpVersion = har.httpVersion || 'HTTP/1.1'
-  har.queryString = har.queryString || []
-  har.headers = har.headers || []
-  har.cookies = har.cookies || []
-  har.postData = har.postData || {}
-  har.postData.mimeType = har.postData.mimeType || 'application/octet-stream'
-
-  har.bodySize = 0
-  har.headersSize = 0
-  har.postData.size = 0
-
-  if (!validate.request(har)) {
-    return options
-  }
-
-  // clean up and get some utility properties
-  var req = this.prep(har)
-
-  // construct new options
-  if (req.url) {
-    options.url = req.url
-  }
-
-  if (req.method) {
-    options.method = req.method
-  }
-
-  if (Object.keys(req.queryObj).length) {
-    options.qs = req.queryObj
-  }
-
-  if (Object.keys(req.headersObj).length) {
-    options.headers = req.headersObj
-  }
-
-  function test (type) {
-    return req.postData.mimeType.indexOf(type) === 0
-  }
-  if (test('application/x-www-form-urlencoded')) {
-    options.form = req.postData.paramsObj
-  } else if (test('application/json')) {
-    if (req.postData.jsonObj) {
-      options.body = req.postData.jsonObj
-      options.json = true
-    }
-  } else if (test('multipart/form-data')) {
-    options.formData = {}
-
-    req.postData.params.forEach(function (param) {
-      var attachment = {}
-
-      if (!param.fileName && !param.contentType) {
-        options.formData[param.name] = param.value
-        return
-      }
-
-      // attempt to read from disk!
-      if (param.fileName && !param.value) {
-        attachment.value = fs.createReadStream(param.fileName)
-      } else if (param.value) {
-        attachment.value = param.value
-      }
-
-      if (param.fileName) {
-        attachment.options = {
-          filename: param.fileName,
-          contentType: param.contentType ? param.contentType : null
-        }
-      }
-
-      options.formData[param.name] = attachment
-    })
-  } else {
-    if (req.postData.text) {
-      options.body = req.postData.text
-    }
-  }
-
-  return options
-}
-
-exports.Har = Har
-
-},{"extend":320,"fs":1,"har-validator":346,"querystring":199}],376:[function(require,module,exports){
-'use strict'
-
-var crypto = require('crypto')
-
-function randomString (size) {
-  var bits = (size + 1) * 6
-  var buffer = crypto.randomBytes(Math.ceil(bits / 8))
-  var string = buffer.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
-  return string.slice(0, size)
-}
-
-function calculatePayloadHash (payload, algorithm, contentType) {
-  var hash = crypto.createHash(algorithm)
-  hash.update('hawk.1.payload\n')
-  hash.update((contentType ? contentType.split(';')[0].trim().toLowerCase() : '') + '\n')
-  hash.update(payload || '')
-  hash.update('\n')
-  return hash.digest('base64')
-}
-
-exports.calculateMac = function (credentials, opts) {
-  var normalized = 'hawk.1.header\n' +
-    opts.ts + '\n' +
-    opts.nonce + '\n' +
-    (opts.method || '').toUpperCase() + '\n' +
-    opts.resource + '\n' +
-    opts.host.toLowerCase() + '\n' +
-    opts.port + '\n' +
-    (opts.hash || '') + '\n'
-
-  if (opts.ext) {
-    normalized = normalized + opts.ext.replace('\\', '\\\\').replace('\n', '\\n')
-  }
-
-  normalized = normalized + '\n'
-
-  if (opts.app) {
-    normalized = normalized + opts.app + '\n' + (opts.dlg || '') + '\n'
-  }
-
-  var hmac = crypto.createHmac(credentials.algorithm, credentials.key).update(normalized)
-  var digest = hmac.digest('base64')
-  return digest
-}
-
-exports.header = function (uri, method, opts) {
-  var timestamp = opts.timestamp || Math.floor((Date.now() + (opts.localtimeOffsetMsec || 0)) / 1000)
-  var credentials = opts.credentials
-  if (!credentials || !credentials.id || !credentials.key || !credentials.algorithm) {
-    return ''
-  }
-
-  if (['sha1', 'sha256'].indexOf(credentials.algorithm) === -1) {
-    return ''
-  }
-
-  var artifacts = {
-    ts: timestamp,
-    nonce: opts.nonce || randomString(6),
-    method: method,
-    resource: uri.pathname + (uri.search || ''),
-    host: uri.hostname,
-    port: uri.port || (uri.protocol === 'http:' ? 80 : 443),
-    hash: opts.hash,
-    ext: opts.ext,
-    app: opts.app,
-    dlg: opts.dlg
-  }
-
-  if (!artifacts.hash && (opts.payload || opts.payload === '')) {
-    artifacts.hash = calculatePayloadHash(opts.payload, credentials.algorithm, opts.contentType)
-  }
-
-  var mac = exports.calculateMac(credentials, artifacts)
-
-  var hasExt = artifacts.ext !== null && artifacts.ext !== undefined && artifacts.ext !== ''
-  var header = 'Hawk id="' + credentials.id +
-    '", ts="' + artifacts.ts +
-    '", nonce="' + artifacts.nonce +
-    (artifacts.hash ? '", hash="' + artifacts.hash : '') +
-    (hasExt ? '", ext="' + artifacts.ext.replace(/\\/g, '\\\\').replace(/"/g, '\\"') : '') +
-    '", mac="' + mac + '"'
-
-  if (artifacts.app) {
-    header = header + ', app="' + artifacts.app + (artifacts.dlg ? '", dlg="' + artifacts.dlg : '') + '"'
-  }
-
-  return header
-}
-
-},{"crypto":82}],377:[function(require,module,exports){
-(function (process,setImmediate){(function (){
-'use strict'
-
-var jsonSafeStringify = require('json-stringify-safe')
-var crypto = require('crypto')
-var Buffer = require('safe-buffer').Buffer
-
-var defer = typeof setImmediate === 'undefined'
-  ? process.nextTick
-  : setImmediate
-
-function paramsHaveRequestBody (params) {
-  return (
-    params.body ||
-    params.requestBodyStream ||
-    (params.json && typeof params.json !== 'boolean') ||
-    params.multipart
-  )
-}
-
-function safeStringify (obj, replacer) {
-  var ret
-  try {
-    ret = JSON.stringify(obj, replacer)
-  } catch (e) {
-    ret = jsonSafeStringify(obj, replacer)
-  }
-  return ret
-}
-
-function md5 (str) {
-  return crypto.createHash('md5').update(str).digest('hex')
-}
-
-function isReadStream (rs) {
-  return rs.readable && rs.path && rs.mode
-}
-
-function toBase64 (str) {
-  return Buffer.from(str || '', 'utf8').toString('base64')
-}
-
-function copy (obj) {
-  var o = {}
-  Object.keys(obj).forEach(function (i) {
-    o[i] = obj[i]
-  })
-  return o
-}
-
-function version () {
-  var numbers = process.version.replace('v', '').split('.')
-  return {
-    major: parseInt(numbers[0], 10),
-    minor: parseInt(numbers[1], 10),
-    patch: parseInt(numbers[2], 10)
-  }
-}
-
-exports.paramsHaveRequestBody = paramsHaveRequestBody
-exports.safeStringify = safeStringify
-exports.md5 = md5
-exports.isReadStream = isReadStream
-exports.toBase64 = toBase64
-exports.copy = copy
-exports.version = version
-exports.defer = defer
-
-}).call(this)}).call(this,require('_process'),require("timers").setImmediate)
-},{"_process":188,"crypto":82,"json-stringify-safe":357,"safe-buffer":384,"timers":248}],378:[function(require,module,exports){
-'use strict'
-
-var uuid = require('uuid/v4')
-var CombinedStream = require('combined-stream')
-var isstream = require('isstream')
-var Buffer = require('safe-buffer').Buffer
-
-function Multipart (request) {
-  this.request = request
-  this.boundary = uuid()
-  this.chunked = false
-  this.body = null
-}
-
-Multipart.prototype.isChunked = function (options) {
-  var self = this
-  var chunked = false
-  var parts = options.data || options
-
-  if (!parts.forEach) {
-    self.request.emit('error', new Error('Argument error, options.multipart.'))
-  }
-
-  if (options.chunked !== undefined) {
-    chunked = options.chunked
-  }
-
-  if (self.request.getHeader('transfer-encoding') === 'chunked') {
-    chunked = true
-  }
-
-  if (!chunked) {
-    parts.forEach(function (part) {
-      if (typeof part.body === 'undefined') {
-        self.request.emit('error', new Error('Body attribute missing in multipart.'))
-      }
-      if (isstream(part.body)) {
-        chunked = true
-      }
-    })
-  }
-
-  return chunked
-}
-
-Multipart.prototype.setHeaders = function (chunked) {
-  var self = this
-
-  if (chunked && !self.request.hasHeader('transfer-encoding')) {
-    self.request.setHeader('transfer-encoding', 'chunked')
-  }
-
-  var header = self.request.getHeader('content-type')
-
-  if (!header || header.indexOf('multipart') === -1) {
-    self.request.setHeader('content-type', 'multipart/related; boundary=' + self.boundary)
-  } else {
-    if (header.indexOf('boundary') !== -1) {
-      self.boundary = header.replace(/.*boundary=([^\s;]+).*/, '$1')
-    } else {
-      self.request.setHeader('content-type', header + '; boundary=' + self.boundary)
-    }
-  }
-}
-
-Multipart.prototype.build = function (parts, chunked) {
-  var self = this
-  var body = chunked ? new CombinedStream() : []
-
-  function add (part) {
-    if (typeof part === 'number') {
-      part = part.toString()
-    }
-    return chunked ? body.append(part) : body.push(Buffer.from(part))
-  }
-
-  if (self.request.preambleCRLF) {
-    add('\r\n')
-  }
-
-  parts.forEach(function (part) {
-    var preamble = '--' + self.boundary + '\r\n'
-    Object.keys(part).forEach(function (key) {
-      if (key === 'body') { return }
-      preamble += key + ': ' + part[key] + '\r\n'
-    })
-    preamble += '\r\n'
-    add(preamble)
-    add(part.body)
-    add('\r\n')
-  })
-  add('--' + self.boundary + '--')
-
-  if (self.request.postambleCRLF) {
-    add('\r\n')
-  }
-
-  return body
-}
-
-Multipart.prototype.onRequest = function (options) {
-  var self = this
-
-  var chunked = self.isChunked(options)
-  var parts = options.data || options
-
-  self.setHeaders(chunked)
-  self.chunked = chunked
-  self.body = self.build(parts, chunked)
-}
-
-exports.Multipart = Multipart
-
-},{"combined-stream":314,"isstream":353,"safe-buffer":384,"uuid/v4":423}],379:[function(require,module,exports){
-'use strict'
-
-var url = require('url')
-var qs = require('qs')
-var caseless = require('caseless')
-var uuid = require('uuid/v4')
-var oauth = require('oauth-sign')
-var crypto = require('crypto')
-var Buffer = require('safe-buffer').Buffer
-
-function OAuth (request) {
-  this.request = request
-  this.params = null
-}
-
-OAuth.prototype.buildParams = function (_oauth, uri, method, query, form, qsLib) {
-  var oa = {}
-  for (var i in _oauth) {
-    oa['oauth_' + i] = _oauth[i]
-  }
-  if (!oa.oauth_version) {
-    oa.oauth_version = '1.0'
-  }
-  if (!oa.oauth_timestamp) {
-    oa.oauth_timestamp = Math.floor(Date.now() / 1000).toString()
-  }
-  if (!oa.oauth_nonce) {
-    oa.oauth_nonce = uuid().replace(/-/g, '')
-  }
-  if (!oa.oauth_signature_method) {
-    oa.oauth_signature_method = 'HMAC-SHA1'
-  }
-
-  var consumer_secret_or_private_key = oa.oauth_consumer_secret || oa.oauth_private_key // eslint-disable-line camelcase
-  delete oa.oauth_consumer_secret
-  delete oa.oauth_private_key
-
-  var token_secret = oa.oauth_token_secret // eslint-disable-line camelcase
-  delete oa.oauth_token_secret
-
-  var realm = oa.oauth_realm
-  delete oa.oauth_realm
-  delete oa.oauth_transport_method
-
-  var baseurl = uri.protocol + '//' + uri.host + uri.pathname
-  var params = qsLib.parse([].concat(query, form, qsLib.stringify(oa)).join('&'))
-
-  oa.oauth_signature = oauth.sign(
-    oa.oauth_signature_method,
-    method,
-    baseurl,
-    params,
-    consumer_secret_or_private_key, // eslint-disable-line camelcase
-    token_secret // eslint-disable-line camelcase
-  )
-
-  if (realm) {
-    oa.realm = realm
-  }
-
-  return oa
-}
-
-OAuth.prototype.buildBodyHash = function (_oauth, body) {
-  if (['HMAC-SHA1', 'RSA-SHA1'].indexOf(_oauth.signature_method || 'HMAC-SHA1') < 0) {
-    this.request.emit('error', new Error('oauth: ' + _oauth.signature_method +
-      ' signature_method not supported with body_hash signing.'))
-  }
-
-  var shasum = crypto.createHash('sha1')
-  shasum.update(body || '')
-  var sha1 = shasum.digest('hex')
-
-  return Buffer.from(sha1, 'hex').toString('base64')
-}
-
-OAuth.prototype.concatParams = function (oa, sep, wrap) {
-  wrap = wrap || ''
-
-  var params = Object.keys(oa).filter(function (i) {
-    return i !== 'realm' && i !== 'oauth_signature'
-  }).sort()
-
-  if (oa.realm) {
-    params.splice(0, 0, 'realm')
-  }
-  params.push('oauth_signature')
-
-  return params.map(function (i) {
-    return i + '=' + wrap + oauth.rfc3986(oa[i]) + wrap
-  }).join(sep)
-}
-
-OAuth.prototype.onRequest = function (_oauth) {
-  var self = this
-  self.params = _oauth
-
-  var uri = self.request.uri || {}
-  var method = self.request.method || ''
-  var headers = caseless(self.request.headers)
-  var body = self.request.body || ''
-  var qsLib = self.request.qsLib || qs
-
-  var form
-  var query
-  var contentType = headers.get('content-type') || ''
-  var formContentType = 'application/x-www-form-urlencoded'
-  var transport = _oauth.transport_method || 'header'
-
-  if (contentType.slice(0, formContentType.length) === formContentType) {
-    contentType = formContentType
-    form = body
-  }
-  if (uri.query) {
-    query = uri.query
-  }
-  if (transport === 'body' && (method !== 'POST' || contentType !== formContentType)) {
-    self.request.emit('error', new Error('oauth: transport_method of body requires POST ' +
-      'and content-type ' + formContentType))
-  }
-
-  if (!form && typeof _oauth.body_hash === 'boolean') {
-    _oauth.body_hash = self.buildBodyHash(_oauth, self.request.body.toString())
-  }
-
-  var oa = self.buildParams(_oauth, uri, method, query, form, qsLib)
-
-  switch (transport) {
-    case 'header':
-      self.request.setHeader('Authorization', 'OAuth ' + self.concatParams(oa, ',', '"'))
-      break
-
-    case 'query':
-      var href = self.request.uri.href += (query ? '&' : '?') + self.concatParams(oa, '&')
-      self.request.uri = url.parse(href)
-      self.request.path = self.request.uri.path
-      break
-
-    case 'body':
-      self.request.body = (form ? form + '&' : '') + self.concatParams(oa, '&')
-      break
-
-    default:
-      self.request.emit('error', new Error('oauth: transport_method invalid'))
-  }
-}
-
-exports.OAuth = OAuth
-
-},{"caseless":313,"crypto":82,"oauth-sign":362,"qs":367,"safe-buffer":384,"url":249,"uuid/v4":423}],380:[function(require,module,exports){
-'use strict'
-
-var qs = require('qs')
-var querystring = require('querystring')
-
-function Querystring (request) {
-  this.request = request
-  this.lib = null
-  this.useQuerystring = null
-  this.parseOptions = null
-  this.stringifyOptions = null
-}
-
-Querystring.prototype.init = function (options) {
-  if (this.lib) { return }
-
-  this.useQuerystring = options.useQuerystring
-  this.lib = (this.useQuerystring ? querystring : qs)
-
-  this.parseOptions = options.qsParseOptions || {}
-  this.stringifyOptions = options.qsStringifyOptions || {}
-}
-
-Querystring.prototype.stringify = function (obj) {
-  return (this.useQuerystring)
-    ? this.rfc3986(this.lib.stringify(obj,
-      this.stringifyOptions.sep || null,
-      this.stringifyOptions.eq || null,
-      this.stringifyOptions))
-    : this.lib.stringify(obj, this.stringifyOptions)
-}
-
-Querystring.prototype.parse = function (str) {
-  return (this.useQuerystring)
-    ? this.lib.parse(str,
-      this.parseOptions.sep || null,
-      this.parseOptions.eq || null,
-      this.parseOptions)
-    : this.lib.parse(str, this.parseOptions)
-}
-
-Querystring.prototype.rfc3986 = function (str) {
-  return str.replace(/[!'()*]/g, function (c) {
-    return '%' + c.charCodeAt(0).toString(16).toUpperCase()
-  })
-}
-
-Querystring.prototype.unescape = querystring.unescape
-
-exports.Querystring = Querystring
-
-},{"qs":367,"querystring":199}],381:[function(require,module,exports){
-'use strict'
-
-var url = require('url')
-var isUrl = /^https?:/
-
-function Redirect (request) {
-  this.request = request
-  this.followRedirect = true
-  this.followRedirects = true
-  this.followAllRedirects = false
-  this.followOriginalHttpMethod = false
-  this.allowRedirect = function () { return true }
-  this.maxRedirects = 10
-  this.redirects = []
-  this.redirectsFollowed = 0
-  this.removeRefererHeader = false
-}
-
-Redirect.prototype.onRequest = function (options) {
-  var self = this
-
-  if (options.maxRedirects !== undefined) {
-    self.maxRedirects = options.maxRedirects
-  }
-  if (typeof options.followRedirect === 'function') {
-    self.allowRedirect = options.followRedirect
-  }
-  if (options.followRedirect !== undefined) {
-    self.followRedirects = !!options.followRedirect
-  }
-  if (options.followAllRedirects !== undefined) {
-    self.followAllRedirects = options.followAllRedirects
-  }
-  if (self.followRedirects || self.followAllRedirects) {
-    self.redirects = self.redirects || []
-  }
-  if (options.removeRefererHeader !== undefined) {
-    self.removeRefererHeader = options.removeRefererHeader
-  }
-  if (options.followOriginalHttpMethod !== undefined) {
-    self.followOriginalHttpMethod = options.followOriginalHttpMethod
-  }
-}
-
-Redirect.prototype.redirectTo = function (response) {
-  var self = this
-  var request = self.request
-
-  var redirectTo = null
-  if (response.statusCode >= 300 && response.statusCode < 400 && response.caseless.has('location')) {
-    var location = response.caseless.get('location')
-    request.debug('redirect', location)
-
-    if (self.followAllRedirects) {
-      redirectTo = location
-    } else if (self.followRedirects) {
-      switch (request.method) {
-        case 'PATCH':
-        case 'PUT':
-        case 'POST':
-        case 'DELETE':
-          // Do not follow redirects
-          break
-        default:
-          redirectTo = location
-          break
-      }
-    }
-  } else if (response.statusCode === 401) {
-    var authHeader = request._auth.onResponse(response)
-    if (authHeader) {
-      request.setHeader('authorization', authHeader)
-      redirectTo = request.uri
-    }
-  }
-  return redirectTo
-}
-
-Redirect.prototype.onResponse = function (response) {
-  var self = this
-  var request = self.request
-
-  var redirectTo = self.redirectTo(response)
-  if (!redirectTo || !self.allowRedirect.call(request, response)) {
-    return false
-  }
-
-  request.debug('redirect to', redirectTo)
-
-  // ignore any potential response body.  it cannot possibly be useful
-  // to us at this point.
-  // response.resume should be defined, but check anyway before calling. Workaround for browserify.
-  if (response.resume) {
-    response.resume()
-  }
-
-  if (self.redirectsFollowed >= self.maxRedirects) {
-    request.emit('error', new Error('Exceeded maxRedirects. Probably stuck in a redirect loop ' + request.uri.href))
-    return false
-  }
-  self.redirectsFollowed += 1
-
-  if (!isUrl.test(redirectTo)) {
-    redirectTo = url.resolve(request.uri.href, redirectTo)
-  }
-
-  var uriPrev = request.uri
-  request.uri = url.parse(redirectTo)
-
-  // handle the case where we change protocol from https to http or vice versa
-  if (request.uri.protocol !== uriPrev.protocol) {
-    delete request.agent
-  }
-
-  self.redirects.push({ statusCode: response.statusCode, redirectUri: redirectTo })
-
-  if (self.followAllRedirects && request.method !== 'HEAD' &&
-    response.statusCode !== 401 && response.statusCode !== 307) {
-    request.method = self.followOriginalHttpMethod ? request.method : 'GET'
-  }
-  // request.method = 'GET' // Force all redirects to use GET || commented out fixes #215
-  delete request.src
-  delete request.req
-  delete request._started
-  if (response.statusCode !== 401 && response.statusCode !== 307) {
-    // Remove parameters from the previous response, unless this is the second request
-    // for a server that requires digest authentication.
-    delete request.body
-    delete request._form
-    if (request.headers) {
-      request.removeHeader('host')
-      request.removeHeader('content-type')
-      request.removeHeader('content-length')
-      if (request.uri.hostname !== request.originalHost.split(':')[0]) {
-        // Remove authorization if changing hostnames (but not if just
-        // changing ports or protocols).  This matches the behavior of curl:
-        // https://github.com/bagder/curl/blob/6beb0eee/lib/http.c#L710
-        request.removeHeader('authorization')
-      }
-    }
-  }
-
-  if (!self.removeRefererHeader) {
-    request.setHeader('referer', uriPrev.href)
-  }
-
-  request.emit('redirect')
-
-  request.init()
-
-  return true
-}
-
-exports.Redirect = Redirect
-
-},{"url":249}],382:[function(require,module,exports){
-'use strict'
-
-var url = require('url')
-var tunnel = require('tunnel-agent')
-
-var defaultProxyHeaderWhiteList = [
-  'accept',
-  'accept-charset',
-  'accept-encoding',
-  'accept-language',
-  'accept-ranges',
-  'cache-control',
-  'content-encoding',
-  'content-language',
-  'content-location',
-  'content-md5',
-  'content-range',
-  'content-type',
-  'connection',
-  'date',
-  'expect',
-  'max-forwards',
-  'pragma',
-  'referer',
-  'te',
-  'user-agent',
-  'via'
-]
-
-var defaultProxyHeaderExclusiveList = [
-  'proxy-authorization'
-]
-
-function constructProxyHost (uriObject) {
-  var port = uriObject.port
-  var protocol = uriObject.protocol
-  var proxyHost = uriObject.hostname + ':'
-
-  if (port) {
-    proxyHost += port
-  } else if (protocol === 'https:') {
-    proxyHost += '443'
-  } else {
-    proxyHost += '80'
-  }
-
-  return proxyHost
-}
-
-function constructProxyHeaderWhiteList (headers, proxyHeaderWhiteList) {
-  var whiteList = proxyHeaderWhiteList
-    .reduce(function (set, header) {
-      set[header.toLowerCase()] = true
-      return set
-    }, {})
-
-  return Object.keys(headers)
-    .filter(function (header) {
-      return whiteList[header.toLowerCase()]
-    })
-    .reduce(function (set, header) {
-      set[header] = headers[header]
-      return set
-    }, {})
-}
-
-function constructTunnelOptions (request, proxyHeaders) {
-  var proxy = request.proxy
-
-  var tunnelOptions = {
-    proxy: {
-      host: proxy.hostname,
-      port: +proxy.port,
-      proxyAuth: proxy.auth,
-      headers: proxyHeaders
-    },
-    headers: request.headers,
-    ca: request.ca,
-    cert: request.cert,
-    key: request.key,
-    passphrase: request.passphrase,
-    pfx: request.pfx,
-    ciphers: request.ciphers,
-    rejectUnauthorized: request.rejectUnauthorized,
-    secureOptions: request.secureOptions,
-    secureProtocol: request.secureProtocol
-  }
-
-  return tunnelOptions
-}
-
-function constructTunnelFnName (uri, proxy) {
-  var uriProtocol = (uri.protocol === 'https:' ? 'https' : 'http')
-  var proxyProtocol = (proxy.protocol === 'https:' ? 'Https' : 'Http')
-  return [uriProtocol, proxyProtocol].join('Over')
-}
-
-function getTunnelFn (request) {
-  var uri = request.uri
-  var proxy = request.proxy
-  var tunnelFnName = constructTunnelFnName(uri, proxy)
-  return tunnel[tunnelFnName]
-}
-
-function Tunnel (request) {
-  this.request = request
-  this.proxyHeaderWhiteList = defaultProxyHeaderWhiteList
-  this.proxyHeaderExclusiveList = []
-  if (typeof request.tunnel !== 'undefined') {
-    this.tunnelOverride = request.tunnel
-  }
-}
-
-Tunnel.prototype.isEnabled = function () {
-  var self = this
-  var request = self.request
-    // Tunnel HTTPS by default. Allow the user to override this setting.
-
-  // If self.tunnelOverride is set (the user specified a value), use it.
-  if (typeof self.tunnelOverride !== 'undefined') {
-    return self.tunnelOverride
-  }
-
-  // If the destination is HTTPS, tunnel.
-  if (request.uri.protocol === 'https:') {
-    return true
-  }
-
-  // Otherwise, do not use tunnel.
-  return false
-}
-
-Tunnel.prototype.setup = function (options) {
-  var self = this
-  var request = self.request
-
-  options = options || {}
-
-  if (typeof request.proxy === 'string') {
-    request.proxy = url.parse(request.proxy)
-  }
-
-  if (!request.proxy || !request.tunnel) {
-    return false
-  }
-
-  // Setup Proxy Header Exclusive List and White List
-  if (options.proxyHeaderWhiteList) {
-    self.proxyHeaderWhiteList = options.proxyHeaderWhiteList
-  }
-  if (options.proxyHeaderExclusiveList) {
-    self.proxyHeaderExclusiveList = options.proxyHeaderExclusiveList
-  }
-
-  var proxyHeaderExclusiveList = self.proxyHeaderExclusiveList.concat(defaultProxyHeaderExclusiveList)
-  var proxyHeaderWhiteList = self.proxyHeaderWhiteList.concat(proxyHeaderExclusiveList)
-
-  // Setup Proxy Headers and Proxy Headers Host
-  // Only send the Proxy White Listed Header names
-  var proxyHeaders = constructProxyHeaderWhiteList(request.headers, proxyHeaderWhiteList)
-  proxyHeaders.host = constructProxyHost(request.uri)
-
-  proxyHeaderExclusiveList.forEach(request.removeHeader, request)
-
-  // Set Agent from Tunnel Data
-  var tunnelFn = getTunnelFn(request)
-  var tunnelOptions = constructTunnelOptions(request, proxyHeaders)
-  request.agent = tunnelFn(tunnelOptions)
-
-  return true
-}
-
-Tunnel.defaultProxyHeaderWhiteList = defaultProxyHeaderWhiteList
-Tunnel.defaultProxyHeaderExclusiveList = defaultProxyHeaderExclusiveList
-exports.Tunnel = Tunnel
-
-},{"tunnel-agent":418,"url":249}],383:[function(require,module,exports){
+},{}],380:[function(require,module,exports){
 (function (process){(function (){
 'use strict'
 
@@ -77969,11 +75680,11 @@ Request.prototype.toJSON = requestToJSON
 module.exports = Request
 
 }).call(this)}).call(this,require('_process'))
-},{"./lib/auth":372,"./lib/cookies":373,"./lib/getProxyFromURI":374,"./lib/har":375,"./lib/hawk":376,"./lib/helpers":377,"./lib/multipart":378,"./lib/oauth":379,"./lib/querystring":380,"./lib/redirect":381,"./lib/tunnel":382,"_process":188,"aws-sign2":309,"aws4":310,"caseless":313,"extend":320,"forever-agent":324,"form-data":325,"http":228,"http-signature":347,"https":151,"is-typedarray":352,"isstream":353,"mime-types":361,"performance-now":363,"safe-buffer":384,"stream":213,"url":249,"util":254,"zlib":69}],384:[function(require,module,exports){
+},{"./lib/auth":364,"./lib/cookies":365,"./lib/getProxyFromURI":366,"./lib/har":367,"./lib/hawk":368,"./lib/helpers":369,"./lib/multipart":370,"./lib/oauth":371,"./lib/querystring":372,"./lib/redirect":373,"./lib/tunnel":374,"_process":188,"aws-sign2":307,"aws4":308,"caseless":311,"extend":317,"forever-agent":321,"form-data":322,"http":228,"http-signature":344,"https":151,"is-typedarray":349,"isstream":350,"mime-types":358,"performance-now":360,"safe-buffer":381,"stream":213,"url":249,"util":254,"zlib":69}],381:[function(require,module,exports){
 arguments[4][203][0].apply(exports,arguments)
-},{"buffer":71,"dup":203}],385:[function(require,module,exports){
+},{"buffer":71,"dup":203}],382:[function(require,module,exports){
 arguments[4][204][0].apply(exports,arguments)
-},{"_process":188,"buffer":71,"dup":204}],386:[function(require,module,exports){
+},{"_process":188,"buffer":71,"dup":204}],383:[function(require,module,exports){
 // Copyright 2015 Joyent, Inc.
 
 var Buffer = require('safer-buffer').Buffer;
@@ -78143,7 +75854,7 @@ module.exports = {
 	curves: curves
 };
 
-},{"safer-buffer":385}],387:[function(require,module,exports){
+},{"safer-buffer":382}],384:[function(require,module,exports){
 // Copyright 2016 Joyent, Inc.
 
 module.exports = Certificate;
@@ -78555,7 +76266,7 @@ Certificate._oldVersionDetect = function (obj) {
 	return ([1, 0]);
 };
 
-},{"./algs":386,"./errors":390,"./fingerprint":391,"./formats/openssh-cert":394,"./formats/x509":403,"./formats/x509-pem":402,"./identity":404,"./key":406,"./private-key":407,"./signature":408,"./utils":410,"assert-plus":308,"crypto":82,"safer-buffer":385,"util":254}],388:[function(require,module,exports){
+},{"./algs":383,"./errors":387,"./fingerprint":388,"./formats/openssh-cert":391,"./formats/x509":400,"./formats/x509-pem":399,"./identity":401,"./key":403,"./private-key":404,"./signature":405,"./utils":407,"assert-plus":306,"crypto":82,"safer-buffer":382,"util":254}],385:[function(require,module,exports){
 // Copyright 2017 Joyent, Inc.
 
 module.exports = {
@@ -78954,7 +76665,7 @@ function generateECDSA(curve) {
 	}
 }
 
-},{"./algs":386,"./key":406,"./private-key":407,"./utils":410,"assert-plus":308,"crypto":82,"ecc-jsbn":317,"ecc-jsbn/lib/ec":318,"jsbn":354,"safer-buffer":385,"tweetnacl":419}],389:[function(require,module,exports){
+},{"./algs":383,"./key":403,"./private-key":404,"./utils":407,"assert-plus":306,"crypto":82,"ecc-jsbn":314,"ecc-jsbn/lib/ec":315,"jsbn":351,"safer-buffer":382,"tweetnacl":416}],386:[function(require,module,exports){
 // Copyright 2015 Joyent, Inc.
 
 module.exports = {
@@ -79048,7 +76759,7 @@ Signer.prototype.sign = function () {
 	return (sigObj);
 };
 
-},{"./signature":408,"assert-plus":308,"safer-buffer":385,"stream":213,"tweetnacl":419,"util":254}],390:[function(require,module,exports){
+},{"./signature":405,"assert-plus":306,"safer-buffer":382,"stream":213,"tweetnacl":416,"util":254}],387:[function(require,module,exports){
 // Copyright 2015 Joyent, Inc.
 
 var assert = require('assert-plus');
@@ -79134,7 +76845,7 @@ module.exports = {
 	CertificateParseError: CertificateParseError
 };
 
-},{"assert-plus":308,"util":254}],391:[function(require,module,exports){
+},{"assert-plus":306,"util":254}],388:[function(require,module,exports){
 // Copyright 2018 Joyent, Inc.
 
 module.exports = Fingerprint;
@@ -79356,7 +77067,7 @@ Fingerprint._oldVersionDetect = function (obj) {
 	return ([1, 0]);
 };
 
-},{"./algs":386,"./certificate":387,"./errors":390,"./key":406,"./private-key":407,"./utils":410,"assert-plus":308,"crypto":82,"safer-buffer":385}],392:[function(require,module,exports){
+},{"./algs":383,"./certificate":384,"./errors":387,"./key":403,"./private-key":404,"./utils":407,"assert-plus":306,"crypto":82,"safer-buffer":382}],389:[function(require,module,exports){
 // Copyright 2018 Joyent, Inc.
 
 module.exports = {
@@ -79482,7 +77193,7 @@ function write(key, options) {
 	throw (new Error('"auto" format cannot be used for writing'));
 }
 
-},{"../key":406,"../private-key":407,"../utils":410,"./dnssec":393,"./pem":395,"./putty":398,"./rfc4253":399,"./ssh":401,"assert-plus":308,"safer-buffer":385}],393:[function(require,module,exports){
+},{"../key":403,"../private-key":404,"../utils":407,"./dnssec":390,"./pem":392,"./putty":395,"./rfc4253":396,"./ssh":398,"assert-plus":306,"safer-buffer":382}],390:[function(require,module,exports){
 // Copyright 2017 Joyent, Inc.
 
 module.exports = {
@@ -79771,7 +77482,7 @@ function write(key, options) {
 	}
 }
 
-},{"../dhe":388,"../key":406,"../private-key":407,"../ssh-buffer":409,"../utils":410,"assert-plus":308,"safer-buffer":385}],394:[function(require,module,exports){
+},{"../dhe":385,"../key":403,"../private-key":404,"../ssh-buffer":406,"../utils":407,"assert-plus":306,"safer-buffer":382}],391:[function(require,module,exports){
 // Copyright 2017 Joyent, Inc.
 
 module.exports = {
@@ -80125,7 +77836,7 @@ function getCertType(key) {
 	throw (new Error('Unsupported key type ' + key.type));
 }
 
-},{"../algs":386,"../certificate":387,"../identity":404,"../key":406,"../private-key":407,"../signature":408,"../ssh-buffer":409,"../utils":410,"./rfc4253":399,"assert-plus":308,"crypto":82,"safer-buffer":385}],395:[function(require,module,exports){
+},{"../algs":383,"../certificate":384,"../identity":401,"../key":403,"../private-key":404,"../signature":405,"../ssh-buffer":406,"../utils":407,"./rfc4253":396,"assert-plus":306,"crypto":82,"safer-buffer":382}],392:[function(require,module,exports){
 // Copyright 2018 Joyent, Inc.
 
 module.exports = {
@@ -80417,7 +78128,7 @@ function write(key, options, type) {
 	return (buf.slice(0, o));
 }
 
-},{"../algs":386,"../errors":390,"../key":406,"../private-key":407,"../utils":410,"./pkcs1":396,"./pkcs8":397,"./rfc4253":399,"./ssh-private":400,"asn1":307,"assert-plus":308,"crypto":82,"safer-buffer":385}],396:[function(require,module,exports){
+},{"../algs":383,"../errors":387,"../key":403,"../private-key":404,"../utils":407,"./pkcs1":393,"./pkcs8":394,"./rfc4253":396,"./ssh-private":397,"asn1":305,"assert-plus":306,"crypto":82,"safer-buffer":382}],393:[function(require,module,exports){
 // Copyright 2015 Joyent, Inc.
 
 module.exports = {
@@ -80792,7 +78503,7 @@ function writePkcs1EdDSAPublic(der, key) {
 	throw (new Error('Public keys are not supported for EdDSA PKCS#1'));
 }
 
-},{"../algs":386,"../key":406,"../private-key":407,"../utils":410,"./pem":395,"./pkcs8":397,"asn1":307,"assert-plus":308,"safer-buffer":385}],397:[function(require,module,exports){
+},{"../algs":383,"../key":403,"../private-key":404,"../utils":407,"./pem":392,"./pkcs8":394,"asn1":305,"assert-plus":306,"safer-buffer":382}],394:[function(require,module,exports){
 // Copyright 2018 Joyent, Inc.
 
 module.exports = {
@@ -81425,7 +79136,7 @@ function writePkcs8EdDSAPrivate(key, der) {
 	der.endSequence();
 }
 
-},{"../algs":386,"../key":406,"../private-key":407,"../utils":410,"./pem":395,"asn1":307,"assert-plus":308,"safer-buffer":385}],398:[function(require,module,exports){
+},{"../algs":383,"../key":403,"../private-key":404,"../utils":407,"./pem":392,"asn1":305,"assert-plus":306,"safer-buffer":382}],395:[function(require,module,exports){
 // Copyright 2018 Joyent, Inc.
 
 module.exports = {
@@ -81621,7 +79332,7 @@ function wrap(txt, len) {
 	return (lines);
 }
 
-},{"../errors":390,"../key":406,"../private-key":407,"../ssh-buffer":409,"./rfc4253":399,"assert-plus":308,"crypto":82,"safer-buffer":385}],399:[function(require,module,exports){
+},{"../errors":387,"../key":403,"../private-key":404,"../ssh-buffer":406,"./rfc4253":396,"assert-plus":306,"crypto":82,"safer-buffer":382}],396:[function(require,module,exports){
 // Copyright 2015 Joyent, Inc.
 
 module.exports = {
@@ -81789,7 +79500,7 @@ function write(key, options) {
 	return (buf.toBuffer());
 }
 
-},{"../algs":386,"../key":406,"../private-key":407,"../ssh-buffer":409,"../utils":410,"assert-plus":308,"safer-buffer":385}],400:[function(require,module,exports){
+},{"../algs":383,"../key":403,"../private-key":404,"../ssh-buffer":406,"../utils":407,"assert-plus":306,"safer-buffer":382}],397:[function(require,module,exports){
 // Copyright 2015 Joyent, Inc.
 
 module.exports = {
@@ -82053,7 +79764,7 @@ function write(key, options) {
 	return (buf.slice(0, o));
 }
 
-},{"../algs":386,"../errors":390,"../key":406,"../private-key":407,"../ssh-buffer":409,"../utils":410,"./pem":395,"./rfc4253":399,"asn1":307,"assert-plus":308,"bcrypt-pbkdf":312,"crypto":82,"safer-buffer":385}],401:[function(require,module,exports){
+},{"../algs":383,"../errors":387,"../key":403,"../private-key":404,"../ssh-buffer":406,"../utils":407,"./pem":392,"./rfc4253":396,"asn1":305,"assert-plus":306,"bcrypt-pbkdf":310,"crypto":82,"safer-buffer":382}],398:[function(require,module,exports){
 // Copyright 2015 Joyent, Inc.
 
 module.exports = {
@@ -82170,7 +79881,7 @@ function write(key, options) {
 	return (Buffer.from(parts.join(' ')));
 }
 
-},{"../key":406,"../private-key":407,"../utils":410,"./rfc4253":399,"./ssh-private":400,"assert-plus":308,"safer-buffer":385}],402:[function(require,module,exports){
+},{"../key":403,"../private-key":404,"../utils":407,"./rfc4253":396,"./ssh-private":397,"assert-plus":306,"safer-buffer":382}],399:[function(require,module,exports){
 // Copyright 2016 Joyent, Inc.
 
 var x509 = require('./x509');
@@ -82260,7 +79971,7 @@ function write(cert, options) {
 	return (buf.slice(0, o));
 }
 
-},{"../algs":386,"../certificate":387,"../identity":404,"../key":406,"../private-key":407,"../signature":408,"../utils":410,"./pem":395,"./x509":403,"asn1":307,"assert-plus":308,"safer-buffer":385}],403:[function(require,module,exports){
+},{"../algs":383,"../certificate":384,"../identity":401,"../key":403,"../private-key":404,"../signature":405,"../utils":407,"./pem":392,"./x509":400,"asn1":305,"assert-plus":306,"safer-buffer":382}],400:[function(require,module,exports){
 // Copyright 2017 Joyent, Inc.
 
 module.exports = {
@@ -83014,7 +80725,7 @@ function writeBitField(setBits, bitIndex) {
 	return (bits);
 }
 
-},{"../algs":386,"../certificate":387,"../identity":404,"../key":406,"../private-key":407,"../signature":408,"../utils":410,"./pem":395,"./pkcs8":397,"asn1":307,"assert-plus":308,"safer-buffer":385}],404:[function(require,module,exports){
+},{"../algs":383,"../certificate":384,"../identity":401,"../key":403,"../private-key":404,"../signature":405,"../utils":407,"./pem":392,"./pkcs8":394,"asn1":305,"assert-plus":306,"safer-buffer":382}],401:[function(require,module,exports){
 // Copyright 2017 Joyent, Inc.
 
 module.exports = Identity;
@@ -83389,7 +81100,7 @@ Identity._oldVersionDetect = function (obj) {
 	return ([1, 0]);
 };
 
-},{"./algs":386,"./errors":390,"./fingerprint":391,"./signature":408,"./utils":410,"asn1":307,"assert-plus":308,"crypto":82,"safer-buffer":385,"util":254}],405:[function(require,module,exports){
+},{"./algs":383,"./errors":387,"./fingerprint":388,"./signature":405,"./utils":407,"asn1":305,"assert-plus":306,"crypto":82,"safer-buffer":382,"util":254}],402:[function(require,module,exports){
 // Copyright 2015 Joyent, Inc.
 
 var Key = require('./key');
@@ -83431,7 +81142,7 @@ module.exports = {
 	CertificateParseError: errs.CertificateParseError
 };
 
-},{"./certificate":387,"./errors":390,"./fingerprint":391,"./identity":404,"./key":406,"./private-key":407,"./signature":408}],406:[function(require,module,exports){
+},{"./certificate":384,"./errors":387,"./fingerprint":388,"./identity":401,"./key":403,"./private-key":404,"./signature":405}],403:[function(require,module,exports){
 (function (Buffer){(function (){
 // Copyright 2018 Joyent, Inc.
 
@@ -83728,8 +81439,8 @@ Key._oldVersionDetect = function (obj) {
 	return ([1, 0]);
 };
 
-}).call(this)}).call(this,{"isBuffer":require("../../../AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js")})
-},{"../../../AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js":155,"./algs":386,"./dhe":388,"./ed-compat":389,"./errors":390,"./fingerprint":391,"./formats/auto":392,"./formats/dnssec":393,"./formats/pem":395,"./formats/pkcs1":396,"./formats/pkcs8":397,"./formats/putty":398,"./formats/rfc4253":399,"./formats/ssh":401,"./formats/ssh-private":400,"./private-key":407,"./signature":408,"./utils":410,"assert-plus":308,"crypto":82}],407:[function(require,module,exports){
+}).call(this)}).call(this,{"isBuffer":require("../../../../../.nvm/versions/node/v16.10.0/lib/node_modules/browserify/node_modules/is-buffer/index.js")})
+},{"../../../../../.nvm/versions/node/v16.10.0/lib/node_modules/browserify/node_modules/is-buffer/index.js":155,"./algs":383,"./dhe":385,"./ed-compat":386,"./errors":387,"./fingerprint":388,"./formats/auto":389,"./formats/dnssec":390,"./formats/pem":392,"./formats/pkcs1":393,"./formats/pkcs8":394,"./formats/putty":395,"./formats/rfc4253":396,"./formats/ssh":398,"./formats/ssh-private":397,"./private-key":404,"./signature":405,"./utils":407,"assert-plus":306,"crypto":82}],404:[function(require,module,exports){
 // Copyright 2017 Joyent, Inc.
 
 module.exports = PrivateKey;
@@ -83978,7 +81689,7 @@ PrivateKey._oldVersionDetect = function (obj) {
 	return ([1, 0]);
 };
 
-},{"./algs":386,"./dhe":388,"./ed-compat":389,"./errors":390,"./fingerprint":391,"./formats/auto":392,"./formats/dnssec":393,"./formats/pem":395,"./formats/pkcs1":396,"./formats/pkcs8":397,"./formats/putty":398,"./formats/rfc4253":399,"./formats/ssh-private":400,"./key":406,"./signature":408,"./utils":410,"assert-plus":308,"crypto":82,"safer-buffer":385,"tweetnacl":419,"util":254}],408:[function(require,module,exports){
+},{"./algs":383,"./dhe":385,"./ed-compat":386,"./errors":387,"./fingerprint":388,"./formats/auto":389,"./formats/dnssec":390,"./formats/pem":392,"./formats/pkcs1":393,"./formats/pkcs8":394,"./formats/putty":395,"./formats/rfc4253":396,"./formats/ssh-private":397,"./key":403,"./signature":405,"./utils":407,"assert-plus":306,"crypto":82,"safer-buffer":382,"tweetnacl":416,"util":254}],405:[function(require,module,exports){
 // Copyright 2015 Joyent, Inc.
 
 module.exports = Signature;
@@ -84294,7 +82005,7 @@ Signature._oldVersionDetect = function (obj) {
 	return ([1, 0]);
 };
 
-},{"./algs":386,"./errors":390,"./ssh-buffer":409,"./utils":410,"asn1":307,"assert-plus":308,"crypto":82,"safer-buffer":385}],409:[function(require,module,exports){
+},{"./algs":383,"./errors":387,"./ssh-buffer":406,"./utils":407,"asn1":305,"assert-plus":306,"crypto":82,"safer-buffer":382}],406:[function(require,module,exports){
 // Copyright 2015 Joyent, Inc.
 
 module.exports = SSHBuffer;
@@ -84445,7 +82156,7 @@ SSHBuffer.prototype.write = function (buf) {
 	this._offset += buf.length;
 };
 
-},{"assert-plus":308,"safer-buffer":385}],410:[function(require,module,exports){
+},{"assert-plus":306,"safer-buffer":382}],407:[function(require,module,exports){
 // Copyright 2015 Joyent, Inc.
 
 module.exports = {
@@ -84851,7 +82562,7 @@ function opensshCipherInfo(cipher) {
 	return (inf);
 }
 
-},{"./algs":386,"./key":406,"./private-key":407,"asn1":307,"assert-plus":308,"crypto":82,"ecc-jsbn/lib/ec":318,"jsbn":354,"safer-buffer":385,"tweetnacl":419}],411:[function(require,module,exports){
+},{"./algs":383,"./key":403,"./private-key":404,"asn1":305,"assert-plus":306,"crypto":82,"ecc-jsbn/lib/ec":315,"jsbn":351,"safer-buffer":382,"tweetnacl":416}],408:[function(require,module,exports){
 /*!
  * Copyright (c) 2015, Salesforce.com, Inc.
  * All rights reserved.
@@ -86335,7 +84046,7 @@ exports.permuteDomain = require('./permuteDomain').permuteDomain;
 exports.permutePath = permutePath;
 exports.canonicalDomain = canonicalDomain;
 
-},{"./memstore":412,"./pathMatch":413,"./permuteDomain":414,"./pubsuffix-psl":415,"./store":416,"./version":417,"net":1,"punycode":196,"url":249,"util":254}],412:[function(require,module,exports){
+},{"./memstore":409,"./pathMatch":410,"./permuteDomain":411,"./pubsuffix-psl":412,"./store":413,"./version":414,"net":1,"punycode":196,"url":249,"util":254}],409:[function(require,module,exports){
 /*!
  * Copyright (c) 2015, Salesforce.com, Inc.
  * All rights reserved.
@@ -86518,7 +84229,7 @@ MemoryCookieStore.prototype.getAllCookies = function(cb) {
   cb(null, cookies);
 };
 
-},{"./pathMatch":413,"./permuteDomain":414,"./store":416,"util":254}],413:[function(require,module,exports){
+},{"./pathMatch":410,"./permuteDomain":411,"./store":413,"util":254}],410:[function(require,module,exports){
 /*!
  * Copyright (c) 2015, Salesforce.com, Inc.
  * All rights reserved.
@@ -86581,7 +84292,7 @@ function pathMatch (reqPath, cookiePath) {
 
 exports.pathMatch = pathMatch;
 
-},{}],414:[function(require,module,exports){
+},{}],411:[function(require,module,exports){
 /*!
  * Copyright (c) 2015, Salesforce.com, Inc.
  * All rights reserved.
@@ -86639,7 +84350,7 @@ function permuteDomain (domain) {
 
 exports.permuteDomain = permuteDomain;
 
-},{"./pubsuffix-psl":415}],415:[function(require,module,exports){
+},{"./pubsuffix-psl":412}],412:[function(require,module,exports){
 /*!
  * Copyright (c) 2018, Salesforce.com, Inc.
  * All rights reserved.
@@ -86679,7 +84390,7 @@ function getPublicSuffix(domain) {
 
 exports.getPublicSuffix = getPublicSuffix;
 
-},{"psl":365}],416:[function(require,module,exports){
+},{"psl":362}],413:[function(require,module,exports){
 /*!
  * Copyright (c) 2015, Salesforce.com, Inc.
  * All rights reserved.
@@ -86756,11 +84467,11 @@ Store.prototype.getAllCookies = function(cb) {
   throw new Error('getAllCookies is not implemented (therefore jar cannot be serialized)');
 };
 
-},{}],417:[function(require,module,exports){
+},{}],414:[function(require,module,exports){
 // generated by genversion
 module.exports = '2.5.0'
 
-},{}],418:[function(require,module,exports){
+},{}],415:[function(require,module,exports){
 (function (process){(function (){
 'use strict'
 
@@ -87008,7 +84719,7 @@ if (process.env.NODE_DEBUG && /\btunnel\b/.test(process.env.NODE_DEBUG)) {
 exports.debug = debug // for test
 
 }).call(this)}).call(this,require('_process'))
-},{"_process":188,"assert":17,"events":111,"http":228,"https":151,"net":1,"safe-buffer":384,"tls":1,"util":254}],419:[function(require,module,exports){
+},{"_process":188,"assert":17,"events":111,"http":228,"https":151,"net":1,"safe-buffer":381,"tls":1,"util":254}],416:[function(require,module,exports){
 (function(nacl) {
 'use strict';
 
@@ -89398,7 +87109,7 @@ nacl.setPRNG = function(fn) {
 
 })(typeof module !== 'undefined' && module.exports ? module.exports : (self.nacl = self.nacl || {}));
 
-},{"crypto":25}],420:[function(require,module,exports){
+},{"crypto":25}],417:[function(require,module,exports){
 /** @license URI.js v4.4.1 (c) 2011 Gary Court. License: http://github.com/garycourt/uri-js */
 (function (global, factory) {
 	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
@@ -90843,7 +88554,7 @@ Object.defineProperty(exports, '__esModule', { value: true });
 })));
 
 
-},{}],421:[function(require,module,exports){
+},{}],418:[function(require,module,exports){
 /**
  * Convert array of 16 byte values to UUID string format of the form:
  * XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
@@ -90871,7 +88582,7 @@ function bytesToUuid(buf, offset) {
 
 module.exports = bytesToUuid;
 
-},{}],422:[function(require,module,exports){
+},{}],419:[function(require,module,exports){
 // Unique ID creation requires a high quality random # generator.  In the
 // browser this is a little complicated due to unknown quality of Math.random()
 // and inconsistent support for the `crypto` API.  We do the best we can via
@@ -90907,7 +88618,7 @@ if (getRandomValues) {
   };
 }
 
-},{}],423:[function(require,module,exports){
+},{}],420:[function(require,module,exports){
 var rng = require('./lib/rng');
 var bytesToUuid = require('./lib/bytesToUuid');
 
@@ -90938,7 +88649,7 @@ function v4(options, buf, offset) {
 
 module.exports = v4;
 
-},{"./lib/bytesToUuid":421,"./lib/rng":422}],424:[function(require,module,exports){
+},{"./lib/bytesToUuid":418,"./lib/rng":419}],421:[function(require,module,exports){
 /*
  * verror.js: richer JavaScript errors
  */
@@ -91391,4 +89102,2444 @@ WError.prototype.cause = function we_cause(c)
 	return (this.jse_cause);
 };
 
-},{"assert-plus":308,"core-util-is":315,"extsprintf":321,"util":254}]},{},[257]);
+},{"assert-plus":306,"core-util-is":422,"extsprintf":318,"util":254}],422:[function(require,module,exports){
+(function (Buffer){(function (){
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+// NOTE: These type checking functions intentionally don't use `instanceof`
+// because it is fragile and can be easily faked with `Object.create()`.
+
+function isArray(arg) {
+  if (Array.isArray) {
+    return Array.isArray(arg);
+  }
+  return objectToString(arg) === '[object Array]';
+}
+exports.isArray = isArray;
+
+function isBoolean(arg) {
+  return typeof arg === 'boolean';
+}
+exports.isBoolean = isBoolean;
+
+function isNull(arg) {
+  return arg === null;
+}
+exports.isNull = isNull;
+
+function isNullOrUndefined(arg) {
+  return arg == null;
+}
+exports.isNullOrUndefined = isNullOrUndefined;
+
+function isNumber(arg) {
+  return typeof arg === 'number';
+}
+exports.isNumber = isNumber;
+
+function isString(arg) {
+  return typeof arg === 'string';
+}
+exports.isString = isString;
+
+function isSymbol(arg) {
+  return typeof arg === 'symbol';
+}
+exports.isSymbol = isSymbol;
+
+function isUndefined(arg) {
+  return arg === void 0;
+}
+exports.isUndefined = isUndefined;
+
+function isRegExp(re) {
+  return objectToString(re) === '[object RegExp]';
+}
+exports.isRegExp = isRegExp;
+
+function isObject(arg) {
+  return typeof arg === 'object' && arg !== null;
+}
+exports.isObject = isObject;
+
+function isDate(d) {
+  return objectToString(d) === '[object Date]';
+}
+exports.isDate = isDate;
+
+function isError(e) {
+  return (objectToString(e) === '[object Error]' || e instanceof Error);
+}
+exports.isError = isError;
+
+function isFunction(arg) {
+  return typeof arg === 'function';
+}
+exports.isFunction = isFunction;
+
+function isPrimitive(arg) {
+  return arg === null ||
+         typeof arg === 'boolean' ||
+         typeof arg === 'number' ||
+         typeof arg === 'string' ||
+         typeof arg === 'symbol' ||  // ES6 symbol
+         typeof arg === 'undefined';
+}
+exports.isPrimitive = isPrimitive;
+
+exports.isBuffer = Buffer.isBuffer;
+
+function objectToString(o) {
+  return Object.prototype.toString.call(o);
+}
+
+}).call(this)}).call(this,{"isBuffer":require("../../../../../../../.nvm/versions/node/v16.10.0/lib/node_modules/browserify/node_modules/is-buffer/index.js")})
+},{"../../../../../../../.nvm/versions/node/v16.10.0/lib/node_modules/browserify/node_modules/is-buffer/index.js":155}],423:[function(require,module,exports){
+(function (Buffer){(function (){
+var request = require('request'); // "Request" library
+var SpotifyWebApi = require('./spotify-web-api-js');
+
+/*****************************************************************************
+*                            SET UP AUTHENTICATION
+/*****************************************************************************/
+
+var genreList = [];
+var client_id = '882f18d8e93e419d85e06d9fe9ee9768'; // Your client id
+var client_secret = '6fb7db9d3d4d45dea315d47e645919aa'; // Your secret
+let token;
+let tokenstring;
+const spotifyApi = new SpotifyWebApi();
+
+// your application requests authorization
+var authOptions = {
+  url: 'https://accounts.spotify.com/api/token',
+  headers: {
+    'Authorization': 'Basic ' + (new Buffer(client_id + ':' + client_secret).toString('base64'))
+  },
+  form: {
+    grant_type: 'client_credentials'
+  },
+  json: true
+};
+
+
+// Gets the token
+request.post(authOptions, function (error, response, body) {
+  if (!error && response.statusCode === 200) {
+
+    // use the access token to access the Spotify Web API
+    token = body.access_token;
+    tokenstring = token.toString();
+    
+    spotifyApi.setAccessToken(tokenstring);
+  }
+});
+
+//ik wil het er nie over hebben
+document.getElementById("rockBtn").addEventListener("click", () => {
+  if (document.getElementById("rockBtn").className.includes("u-btn-1") && genreList.length != 5)
+    document.getElementById("rockBtn").className = document.getElementById("rockBtn").className.replace( /(?:^|\s)u-btn-1(?!\S)/g , ' active-btn ' );
+  else
+    document.getElementById("rockBtn").className = document.getElementById("rockBtn").className.replace( /(?:^|\s)active-btn(?!\S)/g , ' u-btn-1 ' );
+});
+
+document.getElementById("popBtn").addEventListener("click", () => {
+  if (document.getElementById("popBtn").className.includes("u-btn-2") && genreList.length != 5)
+    document.getElementById("popBtn").className = document.getElementById("popBtn").className.replace( /(?:^|\s)u-btn-2(?!\S)/g , ' active-btn ' );
+  else
+    document.getElementById("popBtn").className = document.getElementById("popBtn").className.replace( /(?:^|\s)active-btn(?!\S)/g , ' u-btn-2 ' );
+});
+
+document.getElementById("hip-hopBtn").addEventListener("click", () => {
+  if (document.getElementById("hip-hopBtn").className.includes("u-btn-3") && genreList.length != 5)
+    document.getElementById("hip-hopBtn").className = document.getElementById("hip-hopBtn").className.replace( /(?:^|\s)u-btn-3(?!\S)/g , ' active-btn ' );
+  else
+    document.getElementById("hip-hopBtn").className = document.getElementById("hip-hopBtn").className.replace( /(?:^|\s)active-btn(?!\S)/g , ' u-btn-3 ' );
+});
+
+document.getElementById("metalBtn").addEventListener("click", () => {
+  if (document.getElementById("metalBtn").className.includes("u-btn-4") && genreList.length != 5)
+    document.getElementById("metalBtn").className = document.getElementById("metalBtn").className.replace( /(?:^|\s)u-btn-4(?!\S)/g , ' active-btn ' );
+  else
+    document.getElementById("metalBtn").className = document.getElementById("metalBtn").className.replace( /(?:^|\s)active-btn(?!\S)/g , ' u-btn-4 ' );
+});
+
+document.getElementById("funkBtn").addEventListener("click", () => {
+  if (document.getElementById("funkBtn").className.includes("u-btn-5") && genreList.length != 5)
+    document.getElementById("funkBtn").className = document.getElementById("funkBtn").className.replace( /(?:^|\s)u-btn-5(?!\S)/g , ' active-btn ' );
+  else
+    document.getElementById("funkBtn").className = document.getElementById("funkBtn").className.replace( /(?:^|\s)active-btn(?!\S)/g , ' u-btn-5 ' );
+});
+
+document.getElementById("jazzBtn").addEventListener("click", () => {
+  if (document.getElementById("jazzBtn").className.includes("u-btn-6") && genreList.length != 5)
+    document.getElementById("jazzBtn").className = document.getElementById("jazzBtn").className.replace( /(?:^|\s)u-btn-6(?!\S)/g , ' active-btn ' );
+  else
+    document.getElementById("jazzBtn").className = document.getElementById("jazzBtn").className.replace( /(?:^|\s)active-btn(?!\S)/g , ' u-btn-6 ' );
+});
+
+document.getElementById("technoBtn").addEventListener("click", () => {
+  if (document.getElementById("technoBtn").className.includes("u-btn-7") && genreList.length != 5)
+    document.getElementById("technoBtn").className = document.getElementById("technoBtn").className.replace( /(?:^|\s)u-btn-7(?!\S)/g , ' active-btn ' );
+  else
+    document.getElementById("technoBtn").className = document.getElementById("technoBtn").className.replace( /(?:^|\s)active-btn(?!\S)/g , ' u-btn-7 ' );
+});
+
+document.getElementById("classicalBtn").addEventListener("click", () => {
+  if (document.getElementById("classicalBtn").className.includes("u-btn-8") && genreList.length != 5)
+    document.getElementById("classicalBtn").className = document.getElementById("classicalBtn").className.replace( /(?:^|\s)u-btn-8(?!\S)/g , ' active-btn ' );
+  else
+    document.getElementById("classicalBtn").className = document.getElementById("classicalBtn").className.replace( /(?:^|\s)active-btn(?!\S)/g , ' u-btn-8 ' );
+});
+
+document.getElementById("punkBtn").addEventListener("click", () => {
+  if (document.getElementById("punkBtn").className.includes("u-btn-9") && genreList.length != 5)
+    document.getElementById("punkBtn").className = document.getElementById("punkBtn").className.replace( /(?:^|\s)u-btn-9(?!\S)/g , ' active-btn ' );
+  else
+    document.getElementById("punkBtn").className = document.getElementById("punkBtn").className.replace( /(?:^|\s)active-btn(?!\S)/g , ' u-btn-9 ' );
+});
+
+document.getElementById("k-popBtn").addEventListener("click", () => {
+  if (document.getElementById("k-popBtn").className.includes("u-btn-10") && genreList.length != 5)
+    document.getElementById("k-popBtn").className = document.getElementById("k-popBtn").className.replace( /(?:^|\s)u-btn-10(?!\S)/g , ' active-btn ' );
+  else
+    document.getElementById("k-popBtn").className = document.getElementById("k-popBtn").className.replace( /(?:^|\s)active-btn(?!\S)/g , ' u-btn-10 ' );
+});
+
+document.getElementById("chillBtn").addEventListener("click", () => {
+  if (document.getElementById("chillBtn").className.includes("u-btn-11") && genreList.length != 5)
+    document.getElementById("chillBtn").className = document.getElementById("chillBtn").className.replace( /(?:^|\s)u-btn-11(?!\S)/g , ' active-btn ' );
+  else
+    document.getElementById("chillBtn").className = document.getElementById("chillBtn").className.replace( /(?:^|\s)active-btn(?!\S)/g , ' u-btn-11 ' );
+});
+
+document.getElementById("alternativeBtn").addEventListener("click", () => {
+  if (document.getElementById("alternativeBtn").className.includes("u-btn-12") && genreList.length != 5)
+    document.getElementById("alternativeBtn").className = document.getElementById("alternativeBtn").className.replace( /(?:^|\s)u-btn-12(?!\S)/g , ' active-btn ' );
+  else
+    document.getElementById("alternativeBtn").className = document.getElementById("alternativeBtn").className.replace( /(?:^|\s)active-btn(?!\S)/g , ' u-btn-12 ' );
+});
+
+document.getElementById("indieBtn").addEventListener("click", () => {
+  if (document.getElementById("indieBtn").className.includes("u-btn-13") && genreList.length != 5)
+    document.getElementById("indieBtn").className = document.getElementById("indieBtn").className.replace( /(?:^|\s)u-btn-13(?!\S)/g , ' active-btn ' );
+  else
+    document.getElementById("indieBtn").className = document.getElementById("indieBtn").className.replace( /(?:^|\s)active-btn(?!\S)/g , ' u-btn-13 ' );
+});
+
+document.getElementById("countryBtn").addEventListener("click", () => {
+  if (document.getElementById("countryBtn").className.includes("u-btn-14") && genreList.length != 5)
+    document.getElementById("countryBtn").className = document.getElementById("countryBtn").className.replace( /(?:^|\s)u-btn-14(?!\S)/g , ' active-btn ' );
+  else
+    document.getElementById("countryBtn").className = document.getElementById("countryBtn").className.replace( /(?:^|\s)active-btn(?!\S)/g , ' u-btn-14 ' );
+});
+
+document.getElementById("edmBtn").addEventListener("click", () => {
+  if (document.getElementById("edmBtn").className.includes("u-btn-15") && genreList.length != 5)
+    document.getElementById("edmBtn").className = document.getElementById("edmBtn").className.replace( /(?:^|\s)u-btn-15(?!\S)/g , ' active-btn ' );
+  else
+    document.getElementById("edmBtn").className = document.getElementById("edmBtn").className.replace( /(?:^|\s)active-btn(?!\S)/g , ' u-btn-15 ' );
+});
+
+document.getElementById("r-n-bBtn").addEventListener("click", () => {
+  if (document.getElementById("r-n-bBtn").className.includes("u-btn-16") && genreList.length != 5)
+    document.getElementById("r-n-bBtn").className = document.getElementById("r-n-bBtn").className.replace( /(?:^|\s)u-btn-16(?!\S)/g , ' active-btn ' );
+  else
+    document.getElementById("r-n-bBtn").className = document.getElementById("r-n-bBtn").className.replace( /(?:^|\s)active-btn(?!\S)/g , ' u-btn-16 ' );
+});
+
+document.getElementById("soulBtn").addEventListener("click", () => {
+  if (document.getElementById("soulBtn").className.includes("u-btn-17") && genreList.length != 5)
+    document.getElementById("soulBtn").className = document.getElementById("soulBtn").className.replace( /(?:^|\s)u-btn-17(?!\S)/g , ' active-btn ' );
+  else
+    document.getElementById("soulBtn").className = document.getElementById("soulBtn").className.replace( /(?:^|\s)active-btn(?!\S)/g , ' u-btn-17 ' );
+});
+
+document.getElementById("partyBtn").addEventListener("click", () => {
+  if (document.getElementById("partyBtn").className.includes("u-btn-18") && genreList.length != 5)
+    document.getElementById("partyBtn").className = document.getElementById("partyBtn").className.replace( /(?:^|\s)u-btn-18(?!\S)/g , ' active-btn ' );
+  else
+    document.getElementById("partyBtn").className = document.getElementById("partyBtn").className.replace( /(?:^|\s)active-btn(?!\S)/g , ' u-btn-18 ' );
+});
+
+document.getElementById("work-outBtn").addEventListener("click", () => {
+  if (document.getElementById("work-outBtn").className.includes("u-btn-19") && genreList.length != 5)
+    document.getElementById("work-outBtn").className = document.getElementById("work-outBtn").className.replace( /(?:^|\s)u-btn-19(?!\S)/g , ' active-btn ' );
+  else
+    document.getElementById("work-outBtn").className = document.getElementById("work-outBtn").className.replace( /(?:^|\s)active-btn(?!\S)/g , ' u-btn-19 ' );
+});
+
+document.getElementById("metalcoreBtn").addEventListener("click", () => {
+  if (document.getElementById("metalcoreBtn").className.includes("u-btn-20") && genreList.length != 5)
+    document.getElementById("metalcoreBtn").className = document.getElementById("metalcoreBtn").className.replace( /(?:^|\s)u-btn-20(?!\S)/g , ' active-btn ' );
+  else
+    document.getElementById("metalcoreBtn").className = document.getElementById("metalcoreBtn").className.replace( /(?:^|\s)active-btn(?!\S)/g , ' u-btn-20 ' );
+});
+
+document.getElementById("rockBtn").addEventListener("click", () => {addGenre("rock")});
+document.getElementById("popBtn").addEventListener("click", () => {addGenre("pop")});
+document.getElementById("hip-hopBtn").addEventListener("click", () => {addGenre("hip-hop")});
+document.getElementById("metalBtn").addEventListener("click", () => {addGenre("metal")});
+document.getElementById("funkBtn").addEventListener("click", () => {addGenre("funk")});
+document.getElementById("jazzBtn").addEventListener("click", () => {addGenre("jazz")});
+document.getElementById("technoBtn").addEventListener("click", () => {addGenre("techno")});
+document.getElementById("classicalBtn").addEventListener("click", () => {addGenre("classical")});
+document.getElementById("punkBtn").addEventListener("click", () => {addGenre("punk")});
+document.getElementById("k-popBtn").addEventListener("click", () => {addGenre("k-pop")});
+document.getElementById("chillBtn").addEventListener("click", () => {addGenre("chill")});
+document.getElementById("alternativeBtn").addEventListener("click", () => {addGenre("alternative")});
+document.getElementById("indieBtn").addEventListener("click", () => {addGenre("indie")});
+document.getElementById("countryBtn").addEventListener("click", () => {addGenre("country")});
+document.getElementById("edmBtn").addEventListener("click", () => {addGenre("edm")});
+document.getElementById("r-n-bBtn").addEventListener("click", () => {addGenre("r-n-b")});
+document.getElementById("soulBtn").addEventListener("click", () => {addGenre("soul")});
+document.getElementById("partyBtn").addEventListener("click", () => {addGenre("party")});
+document.getElementById("work-outBtn").addEventListener("click", () => {addGenre("work-out")});
+document.getElementById("metalcoreBtn").addEventListener("click", () => {addGenre("metalcore")});
+
+
+
+
+
+function addGenre(genre) {
+  if (genreList.includes(genre)) {
+    genreList = genreList.filter(e => e !== genre);
+  } else {
+    if (genreList.length != 5) {
+      genreList.push(genre);
+    }
+    
+  }
+  
+  console.log(genreList);
+}
+
+
+
+//Submit button
+document.getElementById("submitBtn").addEventListener("click", getRecommendations);
+function getRecommendations(e) {
+    e.preventDefault();
+    spotifyApi.getRecommendations({seed_genres: genreList},function (err, data) {
+      if (err) console.error(err);
+      else {
+        console.log('recommendations', data);
+        //document.location.href = "file://///wsl$/Ubuntu/home/jef/fmmi/FMMI-Music-Recommender/src/resources/html/List-Select.html";
+
+      }
+    })
+  }
+
+  
+  
+
+}).call(this)}).call(this,require("buffer").Buffer)
+},{"./spotify-web-api-js":424,"buffer":71,"request":363}],424:[function(require,module,exports){
+/* global module */
+'use strict';
+
+/**
+ * Class representing the API
+ */
+var SpotifyWebApi = (function () {
+  var _baseUri = 'https://api.spotify.com/v1';
+  var _accessToken = null;
+  var _promiseImplementation = null;
+
+  var WrapPromiseWithAbort = function (promise, onAbort) {
+    promise.abort = onAbort;
+    return promise;
+  };
+
+  var _promiseProvider = function (promiseFunction, onAbort) {
+    var returnedPromise;
+    if (_promiseImplementation !== null) {
+      var deferred = _promiseImplementation.defer();
+      promiseFunction(
+        function (resolvedResult) {
+          deferred.resolve(resolvedResult);
+        },
+        function (rejectedResult) {
+          deferred.reject(rejectedResult);
+        }
+      );
+      returnedPromise = deferred.promise;
+    } else {
+      if (window.Promise) {
+        returnedPromise = new window.Promise(promiseFunction);
+      }
+    }
+
+    if (returnedPromise) {
+      return new WrapPromiseWithAbort(returnedPromise, onAbort);
+    } else {
+      return null;
+    }
+  };
+
+  var _extend = function () {
+    var args = Array.prototype.slice.call(arguments);
+    var target = args[0];
+    var objects = args.slice(1);
+    target = target || {};
+    objects.forEach(function (object) {
+      for (var j in object) {
+        if (object.hasOwnProperty(j)) {
+          target[j] = object[j];
+        }
+      }
+    });
+    return target;
+  };
+
+  var _buildUrl = function (url, parameters) {
+    var qs = '';
+    for (var key in parameters) {
+      if (parameters.hasOwnProperty(key)) {
+        var value = parameters[key];
+        qs += encodeURIComponent(key) + '=' + encodeURIComponent(value) + '&';
+      }
+    }
+    if (qs.length > 0) {
+      // chop off last '&'
+      qs = qs.substring(0, qs.length - 1);
+      url = url + '?' + qs;
+    }
+    return url;
+  };
+
+  var _performRequest = function (requestData, callback) {
+    var req = new XMLHttpRequest();
+
+    var promiseFunction = function (resolve, reject) {
+      function success(data) {
+        if (resolve) {
+          resolve(data);
+        }
+        if (callback) {
+          callback(null, data);
+        }
+      }
+
+      function failure() {
+        if (reject) {
+          reject(req);
+        }
+        if (callback) {
+          callback(req, null);
+        }
+      }
+
+      var type = requestData.type || 'GET';
+      req.open(type, _buildUrl(requestData.url, requestData.params));
+      if (_accessToken) {
+        req.setRequestHeader('Authorization', 'Bearer ' + _accessToken);
+      }
+
+      req.onreadystatechange = function () {
+        if (req.readyState === 4) {
+          var data = null;
+          try {
+            data = req.responseText ? JSON.parse(req.responseText) : '';
+          } catch (e) {
+            console.error(e);
+          }
+
+          if (req.status >= 200 && req.status < 300) {
+            success(data);
+          } else {
+            failure();
+          }
+        }
+      };
+
+      if (type === 'GET') {
+        req.send(null);
+      } else {
+        var postData = null;
+        if (requestData.postData) {
+          if (requestData.contentType === 'image/jpeg') {
+            postData = requestData.postData;
+            req.setRequestHeader('Content-Type', requestData.contentType);
+          } else {
+            postData = JSON.stringify(requestData.postData);
+            req.setRequestHeader('Content-Type', 'application/json');
+          }
+        }
+        req.send(postData);
+      }
+    };
+
+    if (callback) {
+      promiseFunction();
+      return null;
+    } else {
+      return _promiseProvider(promiseFunction, function () {
+        req.abort();
+      });
+    }
+  };
+
+  var _checkParamsAndPerformRequest = function (
+    requestData,
+    options,
+    callback,
+    optionsAlwaysExtendParams
+  ) {
+    var opt = {};
+    var cb = null;
+
+    if (typeof options === 'object') {
+      opt = options;
+      cb = callback;
+    } else if (typeof options === 'function') {
+      cb = options;
+    }
+
+    // options extend postData, if any. Otherwise they extend parameters sent in the url
+    var type = requestData.type || 'GET';
+    if (type !== 'GET' && requestData.postData && !optionsAlwaysExtendParams) {
+      requestData.postData = _extend(requestData.postData, opt);
+    } else {
+      requestData.params = _extend(requestData.params, opt);
+    }
+    return _performRequest(requestData, cb);
+  };
+
+  /**
+   * Creates an instance of the wrapper
+   * @constructor
+   */
+  var Constr = function () {};
+
+  Constr.prototype = {
+    constructor: SpotifyWebApi
+  };
+
+  /**
+   * Fetches a resource through a generic GET request.
+   *
+   * @param {string} url The URL to be fetched
+   * @param {function(Object,Object)} callback An optional callback
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getGeneric = function (url, callback) {
+    var requestData = {
+      url: url
+    };
+    return _checkParamsAndPerformRequest(requestData, callback);
+  };
+
+  /**
+   * Fetches information about the current user.
+   * See [Get Current User's Profile](https://developer.spotify.com/web-api/get-current-users-profile/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getMe = function (options, callback) {
+    var requestData = {
+      url: _baseUri + '/me'
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Fetches current user's saved tracks.
+   * See [Get Current User's Saved Tracks](https://developer.spotify.com/web-api/get-users-saved-tracks/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getMySavedTracks = function (options, callback) {
+    var requestData = {
+      url: _baseUri + '/me/tracks'
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Adds a list of tracks to the current user's saved tracks.
+   * See [Save Tracks for Current User](https://developer.spotify.com/web-api/save-tracks-user/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Array<string>} trackIds The ids of the tracks. If you know their Spotify URI it is easy
+   * to find their track id (e.g. spotify:track:<here_is_the_track_id>)
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.addToMySavedTracks = function (trackIds, options, callback) {
+    var requestData = {
+      url: _baseUri + '/me/tracks',
+      type: 'PUT',
+      postData: trackIds
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Remove a list of tracks from the current user's saved tracks.
+   * See [Remove Tracks for Current User](https://developer.spotify.com/web-api/remove-tracks-user/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Array<string>} trackIds The ids of the tracks. If you know their Spotify URI it is easy
+   * to find their track id (e.g. spotify:track:<here_is_the_track_id>)
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.removeFromMySavedTracks = function (
+    trackIds,
+    options,
+    callback
+  ) {
+    var requestData = {
+      url: _baseUri + '/me/tracks',
+      type: 'DELETE',
+      postData: trackIds
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Checks if the current user's saved tracks contains a certain list of tracks.
+   * See [Check Current User's Saved Tracks](https://developer.spotify.com/web-api/check-users-saved-tracks/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Array<string>} trackIds The ids of the tracks. If you know their Spotify URI it is easy
+   * to find their track id (e.g. spotify:track:<here_is_the_track_id>)
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.containsMySavedTracks = function (
+    trackIds,
+    options,
+    callback
+  ) {
+    var requestData = {
+      url: _baseUri + '/me/tracks/contains',
+      params: { ids: trackIds.join(',') }
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Get a list of the albums saved in the current Spotify user's "Your Music" library.
+   * See [Get Current User's Saved Albums](https://developer.spotify.com/web-api/get-users-saved-albums/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getMySavedAlbums = function (options, callback) {
+    var requestData = {
+      url: _baseUri + '/me/albums'
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Save one or more albums to the current user's "Your Music" library.
+   * See [Save Albums for Current User](https://developer.spotify.com/web-api/save-albums-user/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Array<string>} albumIds The ids of the albums. If you know their Spotify URI, it is easy
+   * to find their album id (e.g. spotify:album:<here_is_the_album_id>)
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.addToMySavedAlbums = function (albumIds, options, callback) {
+    var requestData = {
+      url: _baseUri + '/me/albums',
+      type: 'PUT',
+      postData: albumIds
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Remove one or more albums from the current user's "Your Music" library.
+   * See [Remove Albums for Current User](https://developer.spotify.com/web-api/remove-albums-user/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Array<string>} albumIds The ids of the albums. If you know their Spotify URI, it is easy
+   * to find their album id (e.g. spotify:album:<here_is_the_album_id>)
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.removeFromMySavedAlbums = function (
+    albumIds,
+    options,
+    callback
+  ) {
+    var requestData = {
+      url: _baseUri + '/me/albums',
+      type: 'DELETE',
+      postData: albumIds
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Check if one or more albums is already saved in the current Spotify user's "Your Music" library.
+   * See [Check User's Saved Albums](https://developer.spotify.com/web-api/check-users-saved-albums/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Array<string>} albumIds The ids of the albums. If you know their Spotify URI, it is easy
+   * to find their album id (e.g. spotify:album:<here_is_the_album_id>)
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.containsMySavedAlbums = function (
+    albumIds,
+    options,
+    callback
+  ) {
+    var requestData = {
+      url: _baseUri + '/me/albums/contains',
+      params: { ids: albumIds.join(',') }
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Get the current user’s top artists based on calculated affinity.
+   * See [Get a User’s Top Artists](https://developer.spotify.com/web-api/get-users-top-artists-and-tracks/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getMyTopArtists = function (options, callback) {
+    var requestData = {
+      url: _baseUri + '/me/top/artists'
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Get the current user’s top tracks based on calculated affinity.
+   * See [Get a User’s Top Tracks](https://developer.spotify.com/web-api/get-users-top-artists-and-tracks/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getMyTopTracks = function (options, callback) {
+    var requestData = {
+      url: _baseUri + '/me/top/tracks'
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Get tracks from the current user’s recently played tracks.
+   * See [Get Current User’s Recently Played Tracks](https://developer.spotify.com/web-api/web-api-personalization-endpoints/get-recently-played/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getMyRecentlyPlayedTracks = function (options, callback) {
+    var requestData = {
+      url: _baseUri + '/me/player/recently-played'
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Adds the current user as a follower of one or more other Spotify users.
+   * See [Follow Artists or Users](https://developer.spotify.com/web-api/follow-artists-users/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Array<string>} userIds The ids of the users. If you know their Spotify URI it is easy
+   * to find their user id (e.g. spotify:user:<here_is_the_user_id>)
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is an empty value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.followUsers = function (userIds, callback) {
+    var requestData = {
+      url: _baseUri + '/me/following/',
+      type: 'PUT',
+      params: {
+        ids: userIds.join(','),
+        type: 'user'
+      }
+    };
+    return _checkParamsAndPerformRequest(requestData, callback);
+  };
+
+  /**
+   * Adds the current user as a follower of one or more artists.
+   * See [Follow Artists or Users](https://developer.spotify.com/web-api/follow-artists-users/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Array<string>} artistIds The ids of the artists. If you know their Spotify URI it is easy
+   * to find their artist id (e.g. spotify:artist:<here_is_the_artist_id>)
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is an empty value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.followArtists = function (artistIds, callback) {
+    var requestData = {
+      url: _baseUri + '/me/following/',
+      type: 'PUT',
+      params: {
+        ids: artistIds.join(','),
+        type: 'artist'
+      }
+    };
+    return _checkParamsAndPerformRequest(requestData, callback);
+  };
+
+  /**
+   * Add the current user as a follower of one playlist.
+   * See [Follow a Playlist](https://developer.spotify.com/web-api/follow-playlist/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} playlistId The id of the playlist. If you know the Spotify URI it is easy
+   * to find the playlist id (e.g. spotify:user:xxxx:playlist:<here_is_the_playlist_id>)
+   * @param {Object} options A JSON object with options that can be passed. For instance,
+   * whether you want the playlist to be followed privately ({public: false})
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is an empty value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.followPlaylist = function (playlistId, options, callback) {
+    var requestData = {
+      url: _baseUri + '/playlists/' + playlistId + '/followers',
+      type: 'PUT',
+      postData: {}
+    };
+
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Removes the current user as a follower of one or more other Spotify users.
+   * See [Unfollow Artists or Users](https://developer.spotify.com/web-api/unfollow-artists-users/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Array<string>} userIds The ids of the users. If you know their Spotify URI it is easy
+   * to find their user id (e.g. spotify:user:<here_is_the_user_id>)
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is an empty value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.unfollowUsers = function (userIds, callback) {
+    var requestData = {
+      url: _baseUri + '/me/following/',
+      type: 'DELETE',
+      params: {
+        ids: userIds.join(','),
+        type: 'user'
+      }
+    };
+    return _checkParamsAndPerformRequest(requestData, callback);
+  };
+
+  /**
+   * Removes the current user as a follower of one or more artists.
+   * See [Unfollow Artists or Users](https://developer.spotify.com/web-api/unfollow-artists-users/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Array<string>} artistIds The ids of the artists. If you know their Spotify URI it is easy
+   * to find their artist id (e.g. spotify:artist:<here_is_the_artist_id>)
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is an empty value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.unfollowArtists = function (artistIds, callback) {
+    var requestData = {
+      url: _baseUri + '/me/following/',
+      type: 'DELETE',
+      params: {
+        ids: artistIds.join(','),
+        type: 'artist'
+      }
+    };
+    return _checkParamsAndPerformRequest(requestData, callback);
+  };
+
+  /**
+   * Remove the current user as a follower of one playlist.
+   * See [Unfollow a Playlist](https://developer.spotify.com/web-api/unfollow-playlist/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} playlistId The id of the playlist. If you know the Spotify URI it is easy
+   * to find the playlist id (e.g. spotify:user:xxxx:playlist:<here_is_the_playlist_id>)
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is an empty value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.unfollowPlaylist = function (playlistId, callback) {
+    var requestData = {
+      url: _baseUri + '/playlists/' + playlistId + '/followers',
+      type: 'DELETE'
+    };
+    return _checkParamsAndPerformRequest(requestData, callback);
+  };
+
+  /**
+   * Checks to see if the current user is following one or more other Spotify users.
+   * See [Check if Current User Follows Users or Artists](https://developer.spotify.com/web-api/check-current-user-follows/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Array<string>} userIds The ids of the users. If you know their Spotify URI it is easy
+   * to find their user id (e.g. spotify:user:<here_is_the_user_id>)
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is an array of boolean values that indicate
+   * whether the user is following the users sent in the request.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.isFollowingUsers = function (userIds, callback) {
+    var requestData = {
+      url: _baseUri + '/me/following/contains',
+      type: 'GET',
+      params: {
+        ids: userIds.join(','),
+        type: 'user'
+      }
+    };
+    return _checkParamsAndPerformRequest(requestData, callback);
+  };
+
+  /**
+   * Checks to see if the current user is following one or more artists.
+   * See [Check if Current User Follows](https://developer.spotify.com/web-api/check-current-user-follows/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Array<string>} artistIds The ids of the artists. If you know their Spotify URI it is easy
+   * to find their artist id (e.g. spotify:artist:<here_is_the_artist_id>)
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is an array of boolean values that indicate
+   * whether the user is following the artists sent in the request.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.isFollowingArtists = function (artistIds, callback) {
+    var requestData = {
+      url: _baseUri + '/me/following/contains',
+      type: 'GET',
+      params: {
+        ids: artistIds.join(','),
+        type: 'artist'
+      }
+    };
+    return _checkParamsAndPerformRequest(requestData, callback);
+  };
+
+  /**
+   * Check to see if one or more Spotify users are following a specified playlist.
+   * See [Check if Users Follow a Playlist](https://developer.spotify.com/web-api/check-user-following-playlist/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} playlistId The id of the playlist. If you know the Spotify URI it is easy
+   * to find the playlist id (e.g. spotify:user:xxxx:playlist:<here_is_the_playlist_id>)
+   * @param {Array<string>} userIds The ids of the users. If you know their Spotify URI it is easy
+   * to find their user id (e.g. spotify:user:<here_is_the_user_id>)
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is an array of boolean values that indicate
+   * whether the users are following the playlist sent in the request.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.areFollowingPlaylist = function (
+    playlistId,
+    userIds,
+    callback
+  ) {
+    var requestData = {
+      url: _baseUri + '/playlists/' + playlistId + '/followers/contains',
+      type: 'GET',
+      params: {
+        ids: userIds.join(',')
+      }
+    };
+    return _checkParamsAndPerformRequest(requestData, callback);
+  };
+
+  /**
+   * Get the current user's followed artists.
+   * See [Get User's Followed Artists](https://developer.spotify.com/web-api/get-followed-artists/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Object} [options] Options, being after and limit.
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is an object with a paged object containing
+   * artists.
+   * @returns {Promise|undefined} A promise that if successful, resolves to an object containing a paging object which contains
+   * artists objects. Not returned if a callback is given.
+   */
+  Constr.prototype.getFollowedArtists = function (options, callback) {
+    var requestData = {
+      url: _baseUri + '/me/following',
+      type: 'GET',
+      params: {
+        type: 'artist'
+      }
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Fetches information about a specific user.
+   * See [Get a User's Profile](https://developer.spotify.com/web-api/get-users-profile/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} userId The id of the user. If you know the Spotify URI it is easy
+   * to find the id (e.g. spotify:user:<here_is_the_id>)
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getUser = function (userId, options, callback) {
+    var requestData = {
+      url: _baseUri + '/users/' + encodeURIComponent(userId)
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Fetches a list of the current user's playlists.
+   * See [Get a List of a User's Playlists](https://developer.spotify.com/web-api/get-list-users-playlists/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} userId An optional id of the user. If you know the Spotify URI it is easy
+   * to find the id (e.g. spotify:user:<here_is_the_id>). If not provided, the id of the user that granted
+   * the permissions will be used.
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getUserPlaylists = function (userId, options, callback) {
+    var requestData;
+    if (typeof userId === 'string') {
+      requestData = {
+        url: _baseUri + '/users/' + encodeURIComponent(userId) + '/playlists'
+      };
+    } else {
+      requestData = {
+        url: _baseUri + '/me/playlists'
+      };
+      callback = options;
+      options = userId;
+    }
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Fetches a specific playlist.
+   * See [Get a Playlist](https://developer.spotify.com/web-api/get-playlist/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} playlistId The id of the playlist. If you know the Spotify URI it is easy
+   * to find the playlist id (e.g. spotify:user:xxxx:playlist:<here_is_the_playlist_id>)
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getPlaylist = function (playlistId, options, callback) {
+    var requestData = {
+      url: _baseUri + '/playlists/' + playlistId
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Fetches the tracks from a specific playlist.
+   * See [Get a Playlist's Tracks](https://developer.spotify.com/web-api/get-playlists-tracks/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} playlistId The id of the playlist. If you know the Spotify URI it is easy
+   * to find the playlist id (e.g. spotify:user:xxxx:playlist:<here_is_the_playlist_id>)
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getPlaylistTracks = function (
+    playlistId,
+    options,
+    callback
+  ) {
+    var requestData = {
+      url: _baseUri + '/playlists/' + playlistId + '/tracks'
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Gets the current image associated with a specific playlist.
+   * See [Get a Playlist Cover Image](https://developer.spotify.com/documentation/web-api/reference/playlists/get-playlist-cover/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} playlistId The id of the playlist. If you know the Spotify URI it is easy
+   * to find the playlist id (e.g. spotify:playlist:<here_is_the_playlist_id>)
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getPlaylistCoverImage = function (playlistId, callback) {
+    var requestData = {
+      url: _baseUri + '/playlists/' + playlistId + '/images'
+    };
+    return _checkParamsAndPerformRequest(requestData, callback);
+  };
+
+  /**
+   * Creates a playlist and stores it in the current user's library.
+   * See [Create a Playlist](https://developer.spotify.com/web-api/create-playlist/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} userId The id of the user. If you know the Spotify URI it is easy
+   * to find the id (e.g. spotify:user:<here_is_the_id>)
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.createPlaylist = function (userId, options, callback) {
+    var requestData = {
+      url: _baseUri + '/users/' + encodeURIComponent(userId) + '/playlists',
+      type: 'POST',
+      postData: options
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Change a playlist's name and public/private state
+   * See [Change a Playlist's Details](https://developer.spotify.com/web-api/change-playlist-details/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} playlistId The id of the playlist. If you know the Spotify URI it is easy
+   * to find the playlist id (e.g. spotify:user:xxxx:playlist:<here_is_the_playlist_id>)
+   * @param {Object} data A JSON object with the data to update. E.g. {name: 'A new name', public: true}
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.changePlaylistDetails = function (
+    playlistId,
+    data,
+    callback
+  ) {
+    var requestData = {
+      url: _baseUri + '/playlists/' + playlistId,
+      type: 'PUT',
+      postData: data
+    };
+    return _checkParamsAndPerformRequest(requestData, data, callback);
+  };
+
+  /**
+   * Add tracks to a playlist.
+   * See [Add Tracks to a Playlist](https://developer.spotify.com/web-api/add-tracks-to-playlist/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} playlistId The id of the playlist. If you know the Spotify URI it is easy
+   * to find the playlist id (e.g. spotify:user:xxxx:playlist:<here_is_the_playlist_id>)
+   * @param {Array<string>} uris An array of Spotify URIs for the tracks
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.addTracksToPlaylist = function (
+    playlistId,
+    uris,
+    options,
+    callback
+  ) {
+    var requestData = {
+      url: _baseUri + '/playlists/' + playlistId + '/tracks',
+      type: 'POST',
+      postData: {
+        uris: uris
+      }
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback, true);
+  };
+
+  /**
+   * Replace the tracks of a playlist
+   * See [Replace a Playlist's Tracks](https://developer.spotify.com/web-api/replace-playlists-tracks/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} playlistId The id of the playlist. If you know the Spotify URI it is easy
+   * to find the playlist id (e.g. spotify:user:xxxx:playlist:<here_is_the_playlist_id>)
+   * @param {Array<string>} uris An array of Spotify URIs for the tracks
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.replaceTracksInPlaylist = function (
+    playlistId,
+    uris,
+    callback
+  ) {
+    var requestData = {
+      url: _baseUri + '/playlists/' + playlistId + '/tracks',
+      type: 'PUT',
+      postData: { uris: uris }
+    };
+    return _checkParamsAndPerformRequest(requestData, {}, callback);
+  };
+
+  /**
+   * Reorder tracks in a playlist
+   * See [Reorder a Playlist’s Tracks](https://developer.spotify.com/web-api/reorder-playlists-tracks/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} playlistId The id of the playlist. If you know the Spotify URI it is easy
+   * to find the playlist id (e.g. spotify:user:xxxx:playlist:<here_is_the_playlist_id>)
+   * @param {number} rangeStart The position of the first track to be reordered.
+   * @param {number} insertBefore The position where the tracks should be inserted. To reorder the tracks to
+   * the end of the playlist, simply set insert_before to the position after the last track.
+   * @param {Object} options An object with optional parameters (range_length, snapshot_id)
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.reorderTracksInPlaylist = function (
+    playlistId,
+    rangeStart,
+    insertBefore,
+    options,
+    callback
+  ) {
+    /* eslint-disable camelcase */
+    var requestData = {
+      url: _baseUri + '/playlists/' + playlistId + '/tracks',
+      type: 'PUT',
+      postData: {
+        range_start: rangeStart,
+        insert_before: insertBefore
+      }
+    };
+    /* eslint-enable camelcase */
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Remove tracks from a playlist
+   * See [Remove Tracks from a Playlist](https://developer.spotify.com/web-api/remove-tracks-playlist/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} playlistId The id of the playlist. If you know the Spotify URI it is easy
+   * to find the playlist id (e.g. spotify:user:xxxx:playlist:<here_is_the_playlist_id>)
+   * @param {Array<Object>} uris An array of tracks to be removed. Each element of the array can be either a
+   * string, in which case it is treated as a URI, or an object containing the properties `uri` (which is a
+   * string) and `positions` (which is an array of integers).
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.removeTracksFromPlaylist = function (
+    playlistId,
+    uris,
+    callback
+  ) {
+    var dataToBeSent = uris.map(function (uri) {
+      if (typeof uri === 'string') {
+        return { uri: uri };
+      } else {
+        return uri;
+      }
+    });
+
+    var requestData = {
+      url: _baseUri + '/playlists/' + playlistId + '/tracks',
+      type: 'DELETE',
+      postData: { tracks: dataToBeSent }
+    };
+    return _checkParamsAndPerformRequest(requestData, {}, callback);
+  };
+
+  /**
+   * Remove tracks from a playlist, specifying a snapshot id.
+   * See [Remove Tracks from a Playlist](https://developer.spotify.com/web-api/remove-tracks-playlist/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} playlistId The id of the playlist. If you know the Spotify URI it is easy
+   * to find the playlist id (e.g. spotify:user:xxxx:playlist:<here_is_the_playlist_id>)
+   * @param {Array<Object>} uris An array of tracks to be removed. Each element of the array can be either a
+   * string, in which case it is treated as a URI, or an object containing the properties `uri` (which is a
+   * string) and `positions` (which is an array of integers).
+   * @param {string} snapshotId The playlist's snapshot ID against which you want to make the changes
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.removeTracksFromPlaylistWithSnapshotId = function (
+    playlistId,
+    uris,
+    snapshotId,
+    callback
+  ) {
+    var dataToBeSent = uris.map(function (uri) {
+      if (typeof uri === 'string') {
+        return { uri: uri };
+      } else {
+        return uri;
+      }
+    });
+    /* eslint-disable camelcase */
+    var requestData = {
+      url: _baseUri + '/playlists/' + playlistId + '/tracks',
+      type: 'DELETE',
+      postData: {
+        tracks: dataToBeSent,
+        snapshot_id: snapshotId
+      }
+    };
+    /* eslint-enable camelcase */
+    return _checkParamsAndPerformRequest(requestData, {}, callback);
+  };
+
+  /**
+   * Remove tracks from a playlist, specifying the positions of the tracks to be removed.
+   * See [Remove Tracks from a Playlist](https://developer.spotify.com/web-api/remove-tracks-playlist/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} playlistId The id of the playlist. If you know the Spotify URI it is easy
+   * to find the playlist id (e.g. spotify:user:xxxx:playlist:<here_is_the_playlist_id>)
+   * @param {Array<number>} positions array of integers containing the positions of the tracks to remove
+   * from the playlist.
+   * @param {string} snapshotId The playlist's snapshot ID against which you want to make the changes
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.removeTracksFromPlaylistInPositions = function (
+    playlistId,
+    positions,
+    snapshotId,
+    callback
+  ) {
+    /* eslint-disable camelcase */
+    var requestData = {
+      url: _baseUri + '/playlists/' + playlistId + '/tracks',
+      type: 'DELETE',
+      postData: {
+        positions: positions,
+        snapshot_id: snapshotId
+      }
+    };
+    /* eslint-enable camelcase */
+    return _checkParamsAndPerformRequest(requestData, {}, callback);
+  };
+
+  /**
+   * Upload a custom playlist cover image.
+   * See [Upload A Custom Playlist Cover Image](https://developer.spotify.com/web-api/upload-a-custom-playlist-cover-image/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} playlistId The id of the playlist. If you know the Spotify URI it is easy
+   * to find the playlist id (e.g. spotify:user:xxxx:playlist:<here_is_the_playlist_id>)
+   * @param {string} imageData Base64 encoded JPEG image data, maximum payload size is 256 KB.
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.uploadCustomPlaylistCoverImage = function (
+    playlistId,
+    imageData,
+    callback
+  ) {
+    var requestData = {
+      url: _baseUri + '/playlists/' + playlistId + '/images',
+      type: 'PUT',
+      postData: imageData.replace(/^data:image\/jpeg;base64,/, ''),
+      contentType: 'image/jpeg'
+    };
+    return _checkParamsAndPerformRequest(requestData, {}, callback);
+  };
+
+  /**
+   * Fetches an album from the Spotify catalog.
+   * See [Get an Album](https://developer.spotify.com/web-api/get-album/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} albumId The id of the album. If you know the Spotify URI it is easy
+   * to find the album id (e.g. spotify:album:<here_is_the_album_id>)
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getAlbum = function (albumId, options, callback) {
+    var requestData = {
+      url: _baseUri + '/albums/' + albumId
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Fetches the tracks of an album from the Spotify catalog.
+   * See [Get an Album's Tracks](https://developer.spotify.com/web-api/get-albums-tracks/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} albumId The id of the album. If you know the Spotify URI it is easy
+   * to find the album id (e.g. spotify:album:<here_is_the_album_id>)
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getAlbumTracks = function (albumId, options, callback) {
+    var requestData = {
+      url: _baseUri + '/albums/' + albumId + '/tracks'
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Fetches multiple albums from the Spotify catalog.
+   * See [Get Several Albums](https://developer.spotify.com/web-api/get-several-albums/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Array<string>} albumIds The ids of the albums. If you know their Spotify URI it is easy
+   * to find their album id (e.g. spotify:album:<here_is_the_album_id>)
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getAlbums = function (albumIds, options, callback) {
+    var requestData = {
+      url: _baseUri + '/albums/',
+      params: { ids: albumIds.join(',') }
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Fetches a track from the Spotify catalog.
+   * See [Get a Track](https://developer.spotify.com/web-api/get-track/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} trackId The id of the track. If you know the Spotify URI it is easy
+   * to find the track id (e.g. spotify:track:<here_is_the_track_id>)
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getTrack = function (trackId, options, callback) {
+    var requestData = {};
+    requestData.url = _baseUri + '/tracks/' + trackId;
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Fetches multiple tracks from the Spotify catalog.
+   * See [Get Several Tracks](https://developer.spotify.com/web-api/get-several-tracks/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Array<string>} trackIds The ids of the tracks. If you know their Spotify URI it is easy
+   * to find their track id (e.g. spotify:track:<here_is_the_track_id>)
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getTracks = function (trackIds, options, callback) {
+    var requestData = {
+      url: _baseUri + '/tracks/',
+      params: { ids: trackIds.join(',') }
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Fetches an artist from the Spotify catalog.
+   * See [Get an Artist](https://developer.spotify.com/web-api/get-artist/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} artistId The id of the artist. If you know the Spotify URI it is easy
+   * to find the artist id (e.g. spotify:artist:<here_is_the_artist_id>)
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getArtist = function (artistId, options, callback) {
+    var requestData = {
+      url: _baseUri + '/artists/' + artistId
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Fetches multiple artists from the Spotify catalog.
+   * See [Get Several Artists](https://developer.spotify.com/web-api/get-several-artists/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Array<string>} artistIds The ids of the artists. If you know their Spotify URI it is easy
+   * to find their artist id (e.g. spotify:artist:<here_is_the_artist_id>)
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getArtists = function (artistIds, options, callback) {
+    var requestData = {
+      url: _baseUri + '/artists/',
+      params: { ids: artistIds.join(',') }
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Fetches the albums of an artist from the Spotify catalog.
+   * See [Get an Artist's Albums](https://developer.spotify.com/web-api/get-artists-albums/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} artistId The id of the artist. If you know the Spotify URI it is easy
+   * to find the artist id (e.g. spotify:artist:<here_is_the_artist_id>)
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getArtistAlbums = function (artistId, options, callback) {
+    var requestData = {
+      url: _baseUri + '/artists/' + artistId + '/albums'
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Fetches a list of top tracks of an artist from the Spotify catalog, for a specific country.
+   * See [Get an Artist's Top Tracks](https://developer.spotify.com/web-api/get-artists-top-tracks/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} artistId The id of the artist. If you know the Spotify URI it is easy
+   * to find the artist id (e.g. spotify:artist:<here_is_the_artist_id>)
+   * @param {string} countryId The id of the country (e.g. ES for Spain or US for United States)
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getArtistTopTracks = function (
+    artistId,
+    countryId,
+    options,
+    callback
+  ) {
+    var requestData = {
+      url: _baseUri + '/artists/' + artistId + '/top-tracks',
+      params: { country: countryId }
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Fetches a list of artists related with a given one from the Spotify catalog.
+   * See [Get an Artist's Related Artists](https://developer.spotify.com/web-api/get-related-artists/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} artistId The id of the artist. If you know the Spotify URI it is easy
+   * to find the artist id (e.g. spotify:artist:<here_is_the_artist_id>)
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getArtistRelatedArtists = function (
+    artistId,
+    options,
+    callback
+  ) {
+    var requestData = {
+      url: _baseUri + '/artists/' + artistId + '/related-artists'
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Fetches a list of Spotify featured playlists (shown, for example, on a Spotify player's "Browse" tab).
+   * See [Get a List of Featured Playlists](https://developer.spotify.com/web-api/get-list-featured-playlists/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getFeaturedPlaylists = function (options, callback) {
+    var requestData = {
+      url: _baseUri + '/browse/featured-playlists'
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Fetches a list of new album releases featured in Spotify (shown, for example, on a Spotify player's "Browse" tab).
+   * See [Get a List of New Releases](https://developer.spotify.com/web-api/get-list-new-releases/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getNewReleases = function (options, callback) {
+    var requestData = {
+      url: _baseUri + '/browse/new-releases'
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Get a list of categories used to tag items in Spotify (on, for example, the Spotify player's "Browse" tab).
+   * See [Get a List of Categories](https://developer.spotify.com/web-api/get-list-categories/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getCategories = function (options, callback) {
+    var requestData = {
+      url: _baseUri + '/browse/categories'
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Get a single category used to tag items in Spotify (on, for example, the Spotify player's "Browse" tab).
+   * See [Get a Category](https://developer.spotify.com/web-api/get-category/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} categoryId The id of the category. These can be found with the getCategories function
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getCategory = function (categoryId, options, callback) {
+    var requestData = {
+      url: _baseUri + '/browse/categories/' + categoryId
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Get a list of Spotify playlists tagged with a particular category.
+   * See [Get a Category's Playlists](https://developer.spotify.com/web-api/get-categorys-playlists/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} categoryId The id of the category. These can be found with the getCategories function
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getCategoryPlaylists = function (
+    categoryId,
+    options,
+    callback
+  ) {
+    var requestData = {
+      url: _baseUri + '/browse/categories/' + categoryId + '/playlists'
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Get Spotify catalog information about artists, albums, tracks or playlists that match a keyword string.
+   * See [Search for an Item](https://developer.spotify.com/web-api/search-item/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} query The search query
+   * @param {Array<string>} types An array of item types to search across.
+   * Valid types are: 'album', 'artist', 'playlist', and 'track'.
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.search = function (query, types, options, callback) {
+    var requestData = {
+      url: _baseUri + '/search/',
+      params: {
+        q: query,
+        type: types.join(',')
+      }
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Fetches albums from the Spotify catalog according to a query.
+   * See [Search for an Item](https://developer.spotify.com/web-api/search-item/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} query The search query
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.searchAlbums = function (query, options, callback) {
+    return this.search(query, ['album'], options, callback);
+  };
+
+  /**
+   * Fetches artists from the Spotify catalog according to a query.
+   * See [Search for an Item](https://developer.spotify.com/web-api/search-item/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} query The search query
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.searchArtists = function (query, options, callback) {
+    return this.search(query, ['artist'], options, callback);
+  };
+
+  /**
+   * Fetches tracks from the Spotify catalog according to a query.
+   * See [Search for an Item](https://developer.spotify.com/web-api/search-item/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} query The search query
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.searchTracks = function (query, options, callback) {
+    return this.search(query, ['track'], options, callback);
+  };
+
+  /**
+   * Fetches playlists from the Spotify catalog according to a query.
+   * See [Search for an Item](https://developer.spotify.com/web-api/search-item/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} query The search query
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.searchPlaylists = function (query, options, callback) {
+    return this.search(query, ['playlist'], options, callback);
+  };
+
+  /**
+   * Fetches shows from the Spotify catalog according to a query.
+   * See [Search for an Item](https://developer.spotify.com/web-api/search-item/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} query The search query
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.searchShows = function (query, options, callback) {
+    return this.search(query, ['show'], options, callback);
+  };
+
+  /**
+   * Fetches episodes from the Spotify catalog according to a query.
+   * See [Search for an Item](https://developer.spotify.com/web-api/search-item/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} query The search query
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.searchEpisodes = function (query, options, callback) {
+    return this.search(query, ['episode'], options, callback);
+  };
+
+  /**
+   * Get audio features for a single track identified by its unique Spotify ID.
+   * See [Get Audio Features for a Track](https://developer.spotify.com/web-api/get-audio-features/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} trackId The id of the track. If you know the Spotify URI it is easy
+   * to find the track id (e.g. spotify:track:<here_is_the_track_id>)
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getAudioFeaturesForTrack = function (trackId, callback) {
+    var requestData = {};
+    requestData.url = _baseUri + '/audio-features/' + trackId;
+    return _checkParamsAndPerformRequest(requestData, {}, callback);
+  };
+
+  /**
+   * Get audio features for multiple tracks based on their Spotify IDs.
+   * See [Get Audio Features for Several Tracks](https://developer.spotify.com/web-api/get-several-audio-features/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Array<string>} trackIds The ids of the tracks. If you know their Spotify URI it is easy
+   * to find their track id (e.g. spotify:track:<here_is_the_track_id>)
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getAudioFeaturesForTracks = function (trackIds, callback) {
+    var requestData = {
+      url: _baseUri + '/audio-features',
+      params: { ids: trackIds }
+    };
+    return _checkParamsAndPerformRequest(requestData, {}, callback);
+  };
+
+  /**
+   * Get audio analysis for a single track identified by its unique Spotify ID.
+   * See [Get Audio Analysis for a Track](https://developer.spotify.com/web-api/get-audio-analysis/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} trackId The id of the track. If you know the Spotify URI it is easy
+   * to find the track id (e.g. spotify:track:<here_is_the_track_id>)
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getAudioAnalysisForTrack = function (trackId, callback) {
+    var requestData = {};
+    requestData.url = _baseUri + '/audio-analysis/' + trackId;
+    return _checkParamsAndPerformRequest(requestData, {}, callback);
+  };
+
+  /**
+   * Create a playlist-style listening experience based on seed artists, tracks and genres.
+   * See [Get Recommendations Based on Seeds](https://developer.spotify.com/web-api/get-recommendations/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getRecommendations = function (options, callback) {
+    var requestData = {
+      url: _baseUri + '/recommendations'
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Retrieve a list of available genres seed parameter values for recommendations.
+   * See [Available Genre Seeds](https://developer.spotify.com/web-api/get-recommendations/#available-genre-seeds) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getAvailableGenreSeeds = function (callback) {
+    var requestData = {
+      url: _baseUri + '/recommendations/available-genre-seeds'
+    };
+    return _checkParamsAndPerformRequest(requestData, {}, callback);
+  };
+
+  /**
+   * Get information about a user’s available devices.
+   * See [Get a User’s Available Devices](https://developer.spotify.com/web-api/get-a-users-available-devices/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getMyDevices = function (callback) {
+    var requestData = {
+      url: _baseUri + '/me/player/devices'
+    };
+    return _checkParamsAndPerformRequest(requestData, {}, callback);
+  };
+
+  /**
+   * Get information about the user’s current playback state, including track, track progress, and active device.
+   * See [Get Information About The User’s Current Playback](https://developer.spotify.com/web-api/get-information-about-the-users-current-playback/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Object} options A JSON object with options that can be passed.
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getMyCurrentPlaybackState = function (options, callback) {
+    var requestData = {
+      url: _baseUri + '/me/player'
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Get the object currently being played on the user’s Spotify account.
+   * See [Get the User’s Currently Playing Track](https://developer.spotify.com/web-api/get-the-users-currently-playing-track/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Object} options A JSON object with options that can be passed.
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getMyCurrentPlayingTrack = function (options, callback) {
+    var requestData = {
+      url: _baseUri + '/me/player/currently-playing'
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Transfer playback to a new device and determine if it should start playing.
+   * See [Transfer a User’s Playback](https://developer.spotify.com/web-api/transfer-a-users-playback/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Array<string>} deviceIds A JSON array containing the ID of the device on which playback should be started/transferred.
+   * @param {Object} options A JSON object with options that can be passed.
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.transferMyPlayback = function (
+    deviceIds,
+    options,
+    callback
+  ) {
+    var postData = options || {};
+    postData.device_ids = deviceIds;
+    var requestData = {
+      type: 'PUT',
+      url: _baseUri + '/me/player',
+      postData: postData
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Play a track on the user's active device
+   * See [Start/Resume a User's Playback](https://developer.spotify.com/documentation/web-api/reference/player/start-a-users-playback/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Object} options A JSON object with options that can be passed.
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.play = function (options, callback) {
+    options = options || {};
+    var params =
+      'device_id' in options ? { device_id: options.device_id } : null;
+    var postData = {};
+    ['context_uri', 'uris', 'offset', 'position_ms'].forEach(function (field) {
+      if (field in options) {
+        postData[field] = options[field];
+      }
+    });
+    var requestData = {
+      type: 'PUT',
+      url: _baseUri + '/me/player/play',
+      params: params,
+      postData: postData
+    };
+
+    // need to clear options so it doesn't add all of them to the query params
+    var newOptions = typeof options === 'function' ? options : {};
+    return _checkParamsAndPerformRequest(requestData, newOptions, callback);
+  };
+
+  /**
+   * Add an item to the end of the user’s current playback queue.
+   * See [Add an Item to the User's Playback Queue](https://developer.spotify.com/documentation/web-api/reference/player/add-to-queue/) on
+   * the Spotify Developer site for more information about the endpoint.
+   * @param {string} uri The uri of the item to add to the queue. Must be a track or an episode uri.
+   * @param {Object} options A JSON object with options that can be passed.
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.queue = function (uri, options, callback) {
+    options = options || {};
+    var params =
+      'device_id' in options
+        ? { uri: uri, device_id: options.device_id }
+        : { uri: uri };
+    var requestData = {
+      type: 'POST',
+      url: _baseUri + '/me/player/queue',
+      params: params
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Pause playback on the user’s account.
+   * See [Pause a User’s Playback](https://developer.spotify.com/web-api/pause-a-users-playback/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Object} options A JSON object with options that can be passed.
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.pause = function (options, callback) {
+    options = options || {};
+    var params =
+      'device_id' in options ? { device_id: options.device_id } : null;
+    var requestData = {
+      type: 'PUT',
+      url: _baseUri + '/me/player/pause',
+      params: params
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Skips to next track in the user’s queue.
+   * See [Skip User’s Playback To Next Track](https://developer.spotify.com/web-api/skip-users-playback-to-next-track/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Object} options A JSON object with options that can be passed.
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.skipToNext = function (options, callback) {
+    options = options || {};
+    var params =
+      'device_id' in options ? { device_id: options.device_id } : null;
+    var requestData = {
+      type: 'POST',
+      url: _baseUri + '/me/player/next',
+      params: params
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Skips to previous track in the user’s queue.
+   * Note that this will ALWAYS skip to the previous track, regardless of the current track’s progress.
+   * Returning to the start of the current track should be performed using `.seek()`
+   * See [Skip User’s Playback To Previous Track](https://developer.spotify.com/web-api/skip-users-playback-to-next-track/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Object} options A JSON object with options that can be passed.
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.skipToPrevious = function (options, callback) {
+    options = options || {};
+    var params =
+      'device_id' in options ? { device_id: options.device_id } : null;
+    var requestData = {
+      type: 'POST',
+      url: _baseUri + '/me/player/previous',
+      params: params
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Seeks to the given position in the user’s currently playing track.
+   * See [Seek To Position In Currently Playing Track](https://developer.spotify.com/web-api/seek-to-position-in-currently-playing-track/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {number} position_ms The position in milliseconds to seek to. Must be a positive number.
+   * @param {Object} options A JSON object with options that can be passed.
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.seek = function (position_ms, options, callback) {
+    options = options || {};
+    var params = {
+      position_ms: position_ms
+    };
+    if ('device_id' in options) {
+      params.device_id = options.device_id;
+    }
+    var requestData = {
+      type: 'PUT',
+      url: _baseUri + '/me/player/seek',
+      params: params
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Set the repeat mode for the user’s playback. Options are repeat-track, repeat-context, and off.
+   * See [Set Repeat Mode On User’s Playback](https://developer.spotify.com/web-api/set-repeat-mode-on-users-playback/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {String} state A string set to 'track', 'context' or 'off'.
+   * @param {Object} options A JSON object with options that can be passed.
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.setRepeat = function (state, options, callback) {
+    options = options || {};
+    var params = {
+      state: state
+    };
+    if ('device_id' in options) {
+      params.device_id = options.device_id;
+    }
+    var requestData = {
+      type: 'PUT',
+      url: _baseUri + '/me/player/repeat',
+      params: params
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Set the volume for the user’s current playback device.
+   * See [Set Volume For User’s Playback](https://developer.spotify.com/web-api/set-volume-for-users-playback/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {number} volume_percent The volume to set. Must be a value from 0 to 100 inclusive.
+   * @param {Object} options A JSON object with options that can be passed.
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.setVolume = function (volume_percent, options, callback) {
+    options = options || {};
+    var params = {
+      volume_percent: volume_percent
+    };
+    if ('device_id' in options) {
+      params.device_id = options.device_id;
+    }
+    var requestData = {
+      type: 'PUT',
+      url: _baseUri + '/me/player/volume',
+      params: params
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Toggle shuffle on or off for user’s playback.
+   * See [Toggle Shuffle For User’s Playback](https://developer.spotify.com/web-api/toggle-shuffle-for-users-playback/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {bool} state Whether or not to shuffle user's playback.
+   * @param {Object} options A JSON object with options that can be passed.
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.setShuffle = function (state, options, callback) {
+    options = options || {};
+    var params = {
+      state: state
+    };
+    if ('device_id' in options) {
+      params.device_id = options.device_id;
+    }
+    var requestData = {
+      type: 'PUT',
+      url: _baseUri + '/me/player/shuffle',
+      params: params
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Fetches a show from the Spotify catalog.
+   * See [Get a Show](https://developer.spotify.com/documentation/web-api/reference/shows/get-a-show/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} showId The id of the show. If you know the Spotify URI it is easy
+   * to find the show id (e.g. spotify:show:<here_is_the_show_id>)
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getShow = function (showId, options, callback) {
+    var requestData = {};
+    requestData.url = _baseUri + '/shows/' + showId;
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Fetches multiple shows from the Spotify catalog.
+   * See [Get Several Shows](https://developer.spotify.com/documentation/web-api/reference/shows/get-several-shows/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Array<string>} showIds The ids of the shows. If you know their Spotify URI it is easy
+   * to find their show id (e.g. spotify:show:<here_is_the_show_id>)
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getShows = function (showIds, options, callback) {
+    var requestData = {
+      url: _baseUri + '/shows/',
+      params: { ids: showIds.join(',') }
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Fetches current user's saved shows.
+   * See [Get Current User's Saved Shows](https://developer.spotify.com/documentation/web-api/reference/library/get-users-saved-shows/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getMySavedShows = function (options, callback) {
+    var requestData = {
+      url: _baseUri + '/me/shows'
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Adds a list of shows to the current user's saved shows.
+   * See [Save Shows for Current User](https://developer.spotify.com/documentation/web-api/reference/library/save-shows-user/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Array<string>} showIds The ids of the shows. If you know their Spotify URI it is easy
+   * to find their show id (e.g. spotify:show:<here_is_the_show_id>)
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.addToMySavedShows = function (showIds, options, callback) {
+    var requestData = {
+      url: _baseUri + '/me/shows',
+      type: 'PUT',
+      postData: showIds
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Remove a list of shows from the current user's saved shows.
+   * See [Remove Shows for Current User](https://developer.spotify.com/documentation/web-api/reference/library/remove-shows-user/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Array<string>} showIds The ids of the shows. If you know their Spotify URI it is easy
+   * to find their show id (e.g. spotify:show:<here_is_the_show_id>)
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.removeFromMySavedShows = function (
+    showIds,
+    options,
+    callback
+  ) {
+    var requestData = {
+      url: _baseUri + '/me/shows',
+      type: 'DELETE',
+      postData: showIds
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Checks if the current user's saved shows contains a certain list of shows.
+   * See [Check Current User's Saved Shows](https://developer.spotify.com/documentation/web-api/reference/library/check-users-saved-shows/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Array<string>} showIds The ids of the shows. If you know their Spotify URI it is easy
+   * to find their show id (e.g. spotify:show:<here_is_the_show_id>)
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.containsMySavedShows = function (
+    showIds,
+    options,
+    callback
+  ) {
+    var requestData = {
+      url: _baseUri + '/me/shows/contains',
+      params: { ids: showIds.join(',') }
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Fetches the episodes of a show from the Spotify catalog.
+   * See [Get a Show's Episodes](https://developer.spotify.com/documentation/web-api/reference/shows/get-shows-episodes/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} showId The id of the show. If you know the Spotify URI it is easy
+   * to find the show id (e.g. spotify:show:<here_is_the_show_id>)
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getShowEpisodes = function (showId, options, callback) {
+    var requestData = {
+      url: _baseUri + '/shows/' + showId + '/episodes'
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Fetches an episode from the Spotify catalog.
+   * See [Get an Episode](https://developer.spotify.com/documentation/web-api/reference/episodes/get-an-episode/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {string} episodeId The id of the episode. If you know the Spotify URI it is easy
+   * to find the episode id (e.g. spotify:episode:<here_is_the_episode_id>)
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getEpisode = function (episodeId, options, callback) {
+    var requestData = {};
+    requestData.url = _baseUri + '/episodes/' + episodeId;
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Fetches multiple episodes from the Spotify catalog.
+   * See [Get Several Episodes](https://developer.spotify.com/documentation/web-api/reference/episodes/get-several-episodes/) on
+   * the Spotify Developer site for more information about the endpoint.
+   *
+   * @param {Array<string>} episodeIds The ids of the episodes. If you know their Spotify URI it is easy
+   * to find their episode id (e.g. spotify:episode:<here_is_the_episode_id>)
+   * @param {Object} options A JSON object with options that can be passed
+   * @param {function(Object,Object)} callback An optional callback that receives 2 parameters. The first
+   * one is the error object (null if no error), and the second is the value if the request succeeded.
+   * @return {Object} Null if a callback is provided, a `Promise` object otherwise
+   */
+  Constr.prototype.getEpisodes = function (episodeIds, options, callback) {
+    var requestData = {
+      url: _baseUri + '/episodes/',
+      params: { ids: episodeIds.join(',') }
+    };
+    return _checkParamsAndPerformRequest(requestData, options, callback);
+  };
+
+  /**
+   * Gets the access token in use.
+   *
+   * @return {string} accessToken The access token
+   */
+  Constr.prototype.getAccessToken = function () {
+    return _accessToken;
+  };
+
+  /**
+   * Sets the access token to be used.
+   * See [the Authorization Guide](https://developer.spotify.com/web-api/authorization-guide/) on
+   * the Spotify Developer site for more information about obtaining an access token.
+   *
+   * @param {string} accessToken The access token
+   * @return {void}
+   */
+  Constr.prototype.setAccessToken = function (accessToken) {
+    _accessToken = accessToken;
+  };
+
+  /**
+   * Sets an implementation of Promises/A+ to be used. E.g. Q, when.
+   * See [Conformant Implementations](https://github.com/promises-aplus/promises-spec/blob/master/implementations.md)
+   * for a list of some available options
+   *
+   * @param {Object} PromiseImplementation A Promises/A+ valid implementation
+   * @throws {Error} If the implementation being set doesn't conform with Promises/A+
+   * @return {void}
+   */
+  Constr.prototype.setPromiseImplementation = function (PromiseImplementation) {
+    var valid = false;
+    try {
+      var p = new PromiseImplementation(function (resolve) {
+        resolve();
+      });
+      if (typeof p.then === 'function' && typeof p.catch === 'function') {
+        valid = true;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    if (valid) {
+      _promiseImplementation = PromiseImplementation;
+    } else {
+      throw new Error('Unsupported implementation of Promises/A+');
+    }
+  };
+
+  return Constr;
+})();
+
+if (typeof module === 'object' && typeof module.exports === 'object') {
+  module.exports = SpotifyWebApi;
+}
+},{}]},{},[423]);
