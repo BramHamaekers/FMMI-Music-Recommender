@@ -89444,7 +89444,7 @@ function getRecommendations(e) {
       if (err) console.error(err);
       else {
         console.log('recommendations', data);
-        //document.location.href = "file://///wsl$/Ubuntu/home/jef/fmmi/FMMI-Music-Recommender/src/resources/html/List-Select.html";
+        document.location.href = "./List-Select.html";
 
       }
     })
