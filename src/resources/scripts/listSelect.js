@@ -48,6 +48,18 @@ document.getElementById("heart17").addEventListener("click", () => {addSong(idLi
 document.getElementById("heart18").addEventListener("click", () => {addSong(idList[18])});
 document.getElementById("heart19").addEventListener("click", () => {addSong(idList[19])});
 
+document.getElementById("submitBtn").addEventListener("click", () => {storeAndSend()});
+
+function storeAndSend() {
+  if (songList.length > 0) {
+    console.log(songList);
+    document.location.href = "./Recommendations.html";
+  }
+  
+
+}
+
+
 
 function addSong(song) {
     if (songList.includes(song)) {
