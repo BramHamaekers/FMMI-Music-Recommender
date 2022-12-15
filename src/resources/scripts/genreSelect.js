@@ -1,3 +1,4 @@
+import { storeSongs } from './storageScripts';
 var request = require('request'); // "Request" library
 var SpotifyWebApi = require('./spotify-web-api-js');
 
@@ -228,7 +229,7 @@ function getRecommendations(e) {
       else {
         console.log('recommendations', data);
         document.location.href = "./List-Select.html";
-
+        storeSongs(data);
       }
     })
   }

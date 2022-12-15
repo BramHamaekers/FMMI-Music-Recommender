@@ -1,24 +1,30 @@
-document.getElementById("storeSongs").addEventListener("click", storeData);
-document.getElementById("clearSongs").addEventListener("click", clearSongs);
 
 
-function storeData(e) {
-    e.preventDefault();
-
-    const checked = document.querySelectorAll('input[type="checkbox"]:checked')
-    selected = Array.from(checked).map(x => x.value)
-
+export function storeSongs(songsObject) {
+    const tracks = songsObject.tracks;
+    var songs = [];
+    tracks.forEach(track => {
+        songs.push(track.id);
+    });
 
     var count = 1;
-    selected.forEach(song => {
+    songs.forEach(song => {
         window.localStorage.setItem("Song"+count.toString(), song);
         count += 1;
     });
 }
 
-function clearSongs(e) {
-    e.preventDefault();
-    for (count = 1; count <= 5; count++) {
+export function getSongs() {
+    var songs = [];
+    for (var count = 1; count <= 20; count++) {
+        songs.push(window.localStorage.getItem("Song"+count.toString()));
+    }
+
+    return songs;
+}
+
+export function clearSongs() {
+    for (var count = 1; count <= 20; count++) {
         window.localStorage.removeItem("Song"+count.toString());
     }
 }

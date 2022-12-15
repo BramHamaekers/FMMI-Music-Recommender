@@ -1,10 +1,17 @@
-export function storeStartTime() {
+document.getElementById("storeStartTime").addEventListener("click", storeStartTime);
+document.getElementById("storeTimeSpent").addEventListener("click", storeTimeSpent);
+document.getElementById("clearTimes").addEventListener("click", clearTimes);
+
+
+function storeStartTime(e) {
+    e.preventDefault();
     const date = new Date();
 
     window.localStorage.setItem("startTime", date);
 }
 
-export function storeTimeSpent() {
+function storeTimeSpent(e) {
+    e.preventDefault();
     const startTime = Date.parse(window.localStorage.getItem("startTime"));
     const endTime = new Date();
 
@@ -18,7 +25,8 @@ export function storeTimeSpent() {
     window.localStorage.setItem("timeSpent", timeSpent);
 }
 
-export function clearTimes() {
+function clearTimes(e) {
+    e.preventDefault();
     window.localStorage.removeItem("startTime");
     window.localStorage.removeItem("timeSpent");
 }
