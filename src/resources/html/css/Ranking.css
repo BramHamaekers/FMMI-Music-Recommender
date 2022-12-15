@@ -1,3 +1,25 @@
+p {
+  position: fixed !important;
+margin-left: 145px !important;
+}
+
+.no-drag-target {
+  pointer-events: none;
+}
+
+.spotify-embed {
+  display: flex;
+
+}
+
+.handle {
+  width: 100px;
+  background: #ccc;
+  border: 1px solid #000;
+  border-radius: 4px;
+
+}
+
 .u-section-1 .u-sheet-1 {
   min-height: 750px;
 }
