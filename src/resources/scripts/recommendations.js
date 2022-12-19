@@ -26,6 +26,9 @@ function storeEndTimeHomepage(e) {
 
       console.log('store end time');
       storeTimeSpent();
+
+      document.location.href = "./questionnaire";
+
 }
 
 document.getElementById("retryBtn").addEventListener("click", retry);

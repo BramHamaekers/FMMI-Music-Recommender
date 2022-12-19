@@ -1,5 +1,41 @@
-var idList = ["2D3gvohUyOfXIVX6Mvhqae", "7fURZRPkB2S70sYR1naKTK", "4cOdK2wGLETKBW3PvgPWqT", "0b9BpOmZC33EjJNWewLJwK", "2LtMq5ELlpRgzP4JSxMGmn", "2i3VpjK6T6gEDENwlUU4cr", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT"];
+import { storeSongs, clearSongs, getSongs } from './storageScripts';
+var request = require('request'); // "Request" library
+var SpotifyWebApi = require('./spotify-web-api-js');
+var client_id = '882f18d8e93e419d85e06d9fe9ee9768'; // Your client id
+var client_secret = '6fb7db9d3d4d45dea315d47e645919aa'; // Your secret
+let token;
+let tokenstring;
+const spotifyApi = new SpotifyWebApi();
+
+var idList = getSongs();
 var rankingList = ['', '', '', '', ''];
+var weightvector = [0.56, 0.285, 0.12, 0.036, 0.0044];
+
+// your application requests authorization
+var authOptions = {
+  url: 'https://accounts.spotify.com/api/token',
+  headers: {
+    'Authorization': 'Basic ' + (new Buffer(client_id + ':' + client_secret).toString('base64'))
+  },
+  form: {
+    grant_type: 'client_credentials'
+  },
+  json: true
+};
+
+
+// Gets the token
+request.post(authOptions, function (error, response, body) {
+  if (!error && response.statusCode === 200) {
+
+    // use the access token to access the Spotify Web API
+    token = body.access_token;
+    tokenstring = token.toString();
+    
+    spotifyApi.setAccessToken(tokenstring);
+  }
+});
+
 
 function createListItem(id, number) {
     var embed = document.createElement("div");
@@ -97,7 +133,7 @@ function drop(e) {
     if (e.target.classList.contains("rank")) {
         var rank = parseInt(e.target.id[4]) // get ranking number from id of div
         if (rankingList[rank-1] == '') {
-            songId = idList[parseInt(e.dataTransfer.getData('text/plain')[13])]; // get song id from id of div
+            var songId = idList[parseInt(e.dataTransfer.getData('text/plain')[13])]; // get song id from id of div
             rankingList[rankingList.indexOf(songId)] = ''; //remove duplicates
             rankingList[rank-1] = songId;
             e.target.classList.remove('drag-over');
@@ -108,7 +144,7 @@ function drop(e) {
     }
 
     if (e.target.id == "spotify-embeds") {
-        songId = idList[parseInt(e.dataTransfer.getData('text/plain')[13])]; // get song id from id of div
+        var songId = idList[parseInt(e.dataTransfer.getData('text/plain')[13])]; // get song id from id of div
         rankingList[rankingList.indexOf(songId)] = '';
         spotifyembeds.classList.remove('drag-over');
 
@@ -128,8 +164,73 @@ function drop(e) {
 
 document.getElementById("submitBtn").addEventListener("click", () => {submit()});
 
-function submit() {
-  //get recommendations based on rankingList and go to recommendations page
-  
 
+async function getFeatures(id) {
+    await spotifyApi.getAudioFeaturesForTrack(id).then((data) => {
+        console.log('Features', data);
+        return data;
+    }, (err) => {
+        console.log("Error getting features.", err);
+    }) 
+  }
+
+  //ik wil het er nie over hebbe
+async function submit() {
+    for (var id of rankingList) {
+        if (id == '') {
+            return;
+        }
+      }
+
+    var acousticnessList = [];
+    var danceabilityList = [];
+    var energyList = [];
+    var instrumentalnessList = [];
+    var livesnessList = [];
+    var loudnessList = [];
+    var speechinessList = [];
+    var tempoList = [];
+    var valenceList = [];
+
+    for (var id of rankingList) {
+        await spotifyApi.getAudioFeaturesForTrack(id).then((features) => {
+            console.log(id, features);
+            acousticnessList.push(features.acousticness);
+            danceabilityList.push(features.danceability);
+            energyList.push(features.energy);
+            instrumentalnessList.push(features.instrumentalness);
+            livesnessList.push(features.livesness);
+            loudnessList.push(features.loudness);
+            speechinessList.push(features.speechiness);
+            tempoList.push(features.tempo);
+            valenceList.push(features.valence);
+            
+            spotifyApi.getRecommendations({seed_tracks: [rankingList[0], rankingList[1], rankingList[2]], target_danceability: weightedFeature(danceabilityList), 
+                target_energy: weightedFeature(energyList), 
+                target_tempo: weightedFeature(tempoList),
+                target_instrumentalness: weightedFeature(instrumentalnessList),
+                target_liveness: weightedFeature(livesnessList),
+                target_loudness: weightedFeature(loudnessList),
+                target_speechiness: weightedFeature(speechinessList),
+                target_valence: weightedFeature(valenceList),
+                target_acousticness: weightedFeature(acousticnessList)},function (err, data) {
+            if (err) console.error(err);
+            else   storeSongs(data);
+                    document.location.href = "./recommendations";
+        })
+        }, (err) => {
+            console.log("Error getting features.", err);
+        }) 
+        
+        
+    }
+
+  }
+
+function weightedFeature(featureList) {
+    var total = 0;
+    for (var i = 0; i < 5; i++) {
+        total += featureList[i] * weightvector[i];
+    }
+    return total;
 }

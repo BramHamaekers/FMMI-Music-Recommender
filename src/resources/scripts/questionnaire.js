@@ -38,14 +38,6 @@ var jsonBtn = document.getElementById("btn")
   
 
 jsonBtn.addEventListener("click", function(){
-  document.getElementById("btn").innerHTML = "YOU CLICKED MEb!";
-
-  // for (const option in options1) {
-  //   if (option.value) {
-  //     const element = object[key];
-      
-  //   }
-  // }
   let data = {}
   for (let index = 1; index <= 14; index++) {
     data[`Q${index}`] = document.querySelector(`input[name="Q${index}"]:checked`).value;
@@ -68,4 +60,27 @@ jsonBtn.addEventListener("click", function(){
     })
     .catch(err => console.log(err));
 
-  })
+var path = window.localStorage.getItem("path");
+var method = window.localStorage.getItem("method");
+
+if (path == "A") {
+  if (method == "list") {
+    window.localStorage.setItem("method", "ranking");
+    document.location.href = "./genreSelect";
+  }
+  else if (method == "ranking") {
+    document.location.href = "./Thankyou.html";
+  }
+}
+
+else if (path == "B") {
+  if (method == "ranking") {
+    window.localStorage.setItem("method", "list");
+    document.location.href = "./genreSelect";
+  }
+  else if (method == "list") {
+    document.location.href = "./Thankyou.html";
+  }
+}
+
+})

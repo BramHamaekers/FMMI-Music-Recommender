@@ -23498,49 +23498,36 @@ utils.intFromLE = intFromLE;
 arguments[4][16][0].apply(exports,arguments)
 },{"buffer":310,"dup":16}],109:[function(require,module,exports){
 module.exports={
-  "_from": "elliptic@^6.5.3",
-  "_id": "elliptic@6.5.4",
-  "_inBundle": false,
-  "_integrity": "sha512-iLhC6ULemrljPZb+QutR5TQGB+pdW6KGD5RSegS+8sorOZT+rdQFbsQFJgvN3eRqNALqJer4oQ16YvJHlU8hzQ==",
-  "_location": "/browserify/elliptic",
-  "_phantomChildren": {},
-  "_requested": {
-    "type": "range",
-    "registry": true,
-    "raw": "elliptic@^6.5.3",
-    "name": "elliptic",
-    "escapedName": "elliptic",
-    "rawSpec": "^6.5.3",
-    "saveSpec": null,
-    "fetchSpec": "^6.5.3"
-  },
-  "_requiredBy": [
-    "/browserify/browserify-sign",
-    "/browserify/create-ecdh"
+  "name": "elliptic",
+  "version": "6.5.4",
+  "description": "EC cryptography",
+  "main": "lib/elliptic.js",
+  "files": [
+    "lib"
   ],
-  "_resolved": "https://registry.npmjs.org/elliptic/-/elliptic-6.5.4.tgz",
-  "_shasum": "da37cebd31e79a1367e941b592ed1fbebd58abbb",
-  "_spec": "elliptic@^6.5.3",
-  "_where": "C:\\Users\\Gebruiker\\AppData\\Roaming\\npm\\node_modules\\browserify\\node_modules\\browserify-sign",
-  "author": {
-    "name": "Fedor Indutny",
-    "email": "fedor@indutny.com"
+  "scripts": {
+    "lint": "eslint lib test",
+    "lint:fix": "npm run lint -- --fix",
+    "unit": "istanbul test _mocha --reporter=spec test/index.js",
+    "test": "npm run lint && npm run unit",
+    "version": "grunt dist && git add dist/"
   },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:indutny/elliptic"
+  },
+  "keywords": [
+    "EC",
+    "Elliptic",
+    "curve",
+    "Cryptography"
+  ],
+  "author": "Fedor Indutny <fedor@indutny.com>",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/indutny/elliptic/issues"
   },
-  "bundleDependencies": false,
-  "dependencies": {
-    "bn.js": "^4.11.9",
-    "brorand": "^1.1.0",
-    "hash.js": "^1.0.0",
-    "hmac-drbg": "^1.0.1",
-    "inherits": "^2.0.4",
-    "minimalistic-assert": "^1.0.1",
-    "minimalistic-crypto-utils": "^1.0.1"
-  },
-  "deprecated": false,
-  "description": "EC cryptography",
+  "homepage": "https://github.com/indutny/elliptic",
   "devDependencies": {
     "brfs": "^2.0.2",
     "coveralls": "^3.1.0",
@@ -23556,31 +23543,15 @@ module.exports={
     "istanbul": "^0.4.5",
     "mocha": "^8.0.1"
   },
-  "files": [
-    "lib"
-  ],
-  "homepage": "https://github.com/indutny/elliptic",
-  "keywords": [
-    "EC",
-    "Elliptic",
-    "curve",
-    "Cryptography"
-  ],
-  "license": "MIT",
-  "main": "lib/elliptic.js",
-  "name": "elliptic",
-  "repository": {
-    "type": "git",
-    "url": "git+ssh://git@github.com/indutny/elliptic.git"
-  },
-  "scripts": {
-    "lint": "eslint lib test",
-    "lint:fix": "npm run lint -- --fix",
-    "test": "npm run lint && npm run unit",
-    "unit": "istanbul test _mocha --reporter=spec test/index.js",
-    "version": "grunt dist && git add dist/"
-  },
-  "version": "6.5.4"
+  "dependencies": {
+    "bn.js": "^4.11.9",
+    "brorand": "^1.1.0",
+    "hash.js": "^1.0.0",
+    "hmac-drbg": "^1.0.1",
+    "inherits": "^2.0.4",
+    "minimalistic-assert": "^1.0.1",
+    "minimalistic-crypto-utils": "^1.0.1"
+  }
 }
 
 },{}],110:[function(require,module,exports){
@@ -46209,8 +46180,8 @@ function _setExports(ndebug) {
 
 module.exports = _setExports(process.env.NODE_NDEBUG);
 
-}).call(this)}).call(this,{"isBuffer":require("../../../../../../AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js")},require('_process'))
-},{"../../../../../../AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js":154,"_process":187,"assert":17,"stream":212,"util":253}],306:[function(require,module,exports){
+}).call(this)}).call(this,{"isBuffer":require("../../../../.nvm/versions/node/v16.10.0/lib/node_modules/browserify/node_modules/is-buffer/index.js")},require('_process'))
+},{"../../../../.nvm/versions/node/v16.10.0/lib/node_modules/browserify/node_modules/is-buffer/index.js":154,"_process":187,"assert":17,"stream":212,"util":253}],306:[function(require,module,exports){
 
 /*!
  *  Copyright 2010 LearnBoost <dev@learnboost.com>
@@ -47739,8 +47710,8 @@ CombinedStream.prototype._emitError = function(err) {
   this.emit('error', err);
 };
 
-}).call(this)}).call(this,{"isBuffer":require("../../../../../../../AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js")})
-},{"../../../../../../../AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js":154,"delayed-stream":313,"stream":212,"util":253}],313:[function(require,module,exports){
+}).call(this)}).call(this,{"isBuffer":require("../../../../../.nvm/versions/node/v16.10.0/lib/node_modules/browserify/node_modules/is-buffer/index.js")})
+},{"../../../../../.nvm/versions/node/v16.10.0/lib/node_modules/browserify/node_modules/is-buffer/index.js":154,"delayed-stream":313,"stream":212,"util":253}],313:[function(require,module,exports){
 var Stream = require('stream').Stream;
 var util = require('util');
 
@@ -50712,8 +50683,8 @@ module.exports = {
 
 };
 
-}).call(this)}).call(this,{"isBuffer":require("../../../../../../../AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js")})
-},{"../../../../../../../AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js":154,"./utils":347,"assert-plus":305,"crypto":81,"http":227,"jsprim":355,"sshpk":402,"util":253}],347:[function(require,module,exports){
+}).call(this)}).call(this,{"isBuffer":require("../../../../../.nvm/versions/node/v16.10.0/lib/node_modules/browserify/node_modules/is-buffer/index.js")})
+},{"../../../../../.nvm/versions/node/v16.10.0/lib/node_modules/browserify/node_modules/is-buffer/index.js":154,"./utils":347,"assert-plus":305,"crypto":81,"http":227,"jsprim":355,"sshpk":402,"util":253}],347:[function(require,module,exports){
 // Copyright 2012 Joyent, Inc.  All rights reserved.
 
 var assert = require('assert-plus');
@@ -81468,8 +81439,8 @@ Key._oldVersionDetect = function (obj) {
 	return ([1, 0]);
 };
 
-}).call(this)}).call(this,{"isBuffer":require("../../../../../../../AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js")})
-},{"../../../../../../../AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js":154,"./algs":383,"./dhe":385,"./ed-compat":386,"./errors":387,"./fingerprint":388,"./formats/auto":389,"./formats/dnssec":390,"./formats/pem":392,"./formats/pkcs1":393,"./formats/pkcs8":394,"./formats/putty":395,"./formats/rfc4253":396,"./formats/ssh":398,"./formats/ssh-private":397,"./private-key":404,"./signature":405,"./utils":407,"assert-plus":305,"crypto":81}],404:[function(require,module,exports){
+}).call(this)}).call(this,{"isBuffer":require("../../../../../.nvm/versions/node/v16.10.0/lib/node_modules/browserify/node_modules/is-buffer/index.js")})
+},{"../../../../../.nvm/versions/node/v16.10.0/lib/node_modules/browserify/node_modules/is-buffer/index.js":154,"./algs":383,"./dhe":385,"./ed-compat":386,"./errors":387,"./fingerprint":388,"./formats/auto":389,"./formats/dnssec":390,"./formats/pem":392,"./formats/pkcs1":393,"./formats/pkcs8":394,"./formats/putty":395,"./formats/rfc4253":396,"./formats/ssh":398,"./formats/ssh-private":397,"./private-key":404,"./signature":405,"./utils":407,"assert-plus":305,"crypto":81}],404:[function(require,module,exports){
 // Copyright 2017 Joyent, Inc.
 
 module.exports = PrivateKey;
@@ -89241,8 +89212,8 @@ function objectToString(o) {
   return Object.prototype.toString.call(o);
 }
 
-}).call(this)}).call(this,{"isBuffer":require("../../../../../../../../../AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js")})
-},{"../../../../../../../../../AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js":154}],423:[function(require,module,exports){
+}).call(this)}).call(this,{"isBuffer":require("../../../../../../../.nvm/versions/node/v16.10.0/lib/node_modules/browserify/node_modules/is-buffer/index.js")})
+},{"../../../../../../../.nvm/versions/node/v16.10.0/lib/node_modules/browserify/node_modules/is-buffer/index.js":154}],423:[function(require,module,exports){
 (function (Buffer){(function (){
 "use strict";
 
@@ -89425,8 +89396,12 @@ function getRecommendations(e) {
     }, function (err, data) {
       if (err) console.error(err);else {
         console.log('recommendations', data);
-        document.location.href = "./List-Select.html";
         (0, _storageScripts.storeSongs)(data);
+        if (window.localStorage.getItem("method") == "list") {
+          document.location.href = "./listSelect";
+        } else if (window.localStorage.getItem("method") == "ranking") {
+          document.location.href = "./ranking";
+        }
       }
     });
   }
@@ -91529,6 +91504,7 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.clearSongs = clearSongs;
+exports.getSongs = getSongs;
 exports.storeSongs = storeSongs;
 function storeSongs(songsObject) {
   const tracks = songsObject.tracks;
@@ -91542,9 +91518,15 @@ function storeSongs(songsObject) {
     count += 1;
   });
 }
-function clearSongs(e) {
-  e.preventDefault();
-  for (count = 1; count <= 5; count++) {
+function getSongs() {
+  var songs = [];
+  for (var count = 1; count <= 20; count++) {
+    songs.push(window.localStorage.getItem("Song" + count.toString()));
+  }
+  return songs;
+}
+function clearSongs() {
+  for (var count = 1; count <= 20; count++) {
     window.localStorage.removeItem("Song" + count.toString());
   }
 }

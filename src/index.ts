@@ -2,6 +2,8 @@ import express, { Application } from "express";
 import morgan from "morgan";
 import * as path from 'path';
 import PingController from "../src/controllers/ping";
+import * as fs from 'fs';
+
 
 const PORT = 3460;
 
@@ -37,6 +39,10 @@ router.get("/scripts/genreSelectBuild.js", async (_req, res) => {
 
 router.get("/scripts/listSelectBuild.js", async (_req, res) => {
     res.sendFile(path.join(__dirname, '/../src/resources/scripts/listSelectBuild.js'));
+});
+
+router.get("/scripts/rankingBuild.js", async (_req, res) => {
+    res.sendFile(path.join(__dirname, '/../src/resources/scripts/rankingBuild.js'));
 });
 
 
@@ -91,6 +97,10 @@ router.get("/listSelect", async (req, res) => {
 
 router.get("/recommendations", async (req, res) => {
     res.sendFile(path.join(__dirname, '/../src/resources/html/Recommendations.html'));
+})
+
+router.get("/ranking", async (req, res) => {
+    res.sendFile(path.join(__dirname, '/../src/resources/html/Ranking.html'));
 })
 
 /** Template on how to handle request for a script */

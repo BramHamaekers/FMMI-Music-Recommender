@@ -21,6 +21,7 @@ function storeEndTimeHomepage(e) {
   e.preventDefault();
   console.log('store end time');
   (0, _timerScripts.storeTimeSpent)();
+  document.location.href = "./questionnaire";
 }
 document.getElementById("retryBtn").addEventListener("click", retry);
 function retry(e) {

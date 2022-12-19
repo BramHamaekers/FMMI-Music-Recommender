@@ -89341,7 +89341,7 @@ function storeAndSend() {
     }, function (err, data) {
       if (err) console.error(err);else {
         console.log('recommendations', data);
-        document.location.href = "./Recommendations.html";
+        document.location.href = "./recommendations";
         (0, _storageScripts.storeSongs)(data);
       }
     });

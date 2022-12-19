@@ -228,8 +228,12 @@ function getRecommendations(e) {
       if (err) console.error(err);
       else {
         console.log('recommendations', data);
-        document.location.href = "./List-Select.html";
         storeSongs(data);
+        if (window.localStorage.getItem("method") == "list") {
+          document.location.href = "./listSelect";
+        } else if (window.localStorage.getItem("method") == "ranking") {
+          document.location.href = "./ranking";
+        }    
       }
     })
   }
