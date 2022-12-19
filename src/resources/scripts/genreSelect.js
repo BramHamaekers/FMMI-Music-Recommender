@@ -229,6 +229,7 @@ function getRecommendations(e) {
       else {
         console.log('recommendations', data);
         storeSongs(data);
+        window.localStorage.setItem("retryCount", 0);
         if (window.localStorage.getItem("method") == "list") {
           document.location.href = "./listSelect";
         } else if (window.localStorage.getItem("method") == "ranking") {

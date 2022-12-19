@@ -9,15 +9,19 @@ margin-left: 145px !important;
 
 .spotify-embed {
   display: flex;
+}
 
+.botMargin {
+  margin-bottom: 10px;
 }
 
 .handle {
   width: 100px;
-  background: #ccc;
-  border: 1px solid #000;
-  border-radius: 4px;
-
+  border-radius: 20px;
+  background-image: url(../images/handle3.png) !important;
+  background-size: cover;
+  filter: invert(100%);
+  margin-right: 5px;
 }
 
 .u-section-1 .u-sheet-1 {
