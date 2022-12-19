@@ -22,7 +22,7 @@ router.use(express.json())
 /** Tell the application to start listining on port = PORT */
 app.listen(PORT, () => {
     console.log("Server is now running on port", PORT);
-});
+}); 
 
 /** Template on how to handle a request and return a message */
 router.get("/ping", async (req, res) => {
@@ -131,7 +131,7 @@ router.get("/questionnaire", async (_req, res) => {
         res.sendFile(path.join(__dirname, '/../src/resources/html/questionnaire.html'));
 });
 
-router.get("/answers", async (_req, res) => {
+router.get("/answers-427ecbb3-620c-4167-9d0b-9a853e79999e", async (_req, res) => {
     res.sendFile(path.join(__dirname, '/../src/resources/html/answers.html'));
 });
 
@@ -145,20 +145,20 @@ router.get("/scripts/answers.js", async (_req, res) => {
 });
 
 router.get("/answers.json", async (_req, res) => {
-    res.sendFile(path.join(__dirname, '/../src/resources/html/answers.json'));
+    res.sendFile(path.join(__dirname, '/../src/resources/json/answers.json'));
 });
 
 router.get("/vragen.json", async (_req, res) => {
-    res.sendFile(path.join(__dirname, '/../src/resources/html/vragen.json')); 
+    res.sendFile(path.join(__dirname, '/../src/resources/json/vragen.json')); 
 });   
 
 router.get("/styles.css", async (_req, res) => {
-    res.sendFile(path.join(__dirname, '/../src/resources/html/styles.css'));
+    res.sendFile(path.join(__dirname, '/../src/resources/html/css/styles.css'));
 });
 
 router.post('/',function(req,res){
     console.log("Received message " + req.body["message"]);  
-    var pathstr = String.raw`C:\Users\woutv\Documents\Unief\2e_Master\Semester1\HMI\Project\FMMI-Music-Recommender\src\resources\html\answers.json`;
+    var pathstr = path.join(__dirname, '/../src/resources/json/answers.json');
     writeToJson(pathstr, req.body["message"]) 
     res.json({"Response": "Data recieved!"}); 
  }); 

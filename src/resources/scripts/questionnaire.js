@@ -9,7 +9,7 @@ fetch("vragen.json")
    for(let vraag of vragen){
         name = "Q" + counter.toString()
         out += `
-            <label>
+            <label class = "question">
                ${vraag.tekst}
             </label>
         
@@ -23,7 +23,13 @@ fetch("vragen.json")
                 <li> Strongly Agree </li>
             </ul>
             <br>
+            <label class = "errMessage" id="error_fill_in_everything${name}" > 
+
+            </label>
             <br>
+            <br>
+            <br>
+
             `;
          counter ++;
    }
@@ -39,8 +45,23 @@ var jsonBtn = document.getElementById("btn")
 
 jsonBtn.addEventListener("click", function(){
   let data = {}
+  let complete = true;
   for (let index = 1; index <= 14; index++) {
-    data[`Q${index}`] = document.querySelector(`input[name="Q${index}"]:checked`).value;
+    try {
+      data[`Q${index}`] = document.querySelector(`input[name="Q${index}"]:checked`).value;
+    }
+    catch(error){
+      console.log(error);
+      let name = "Q" + index.toString()
+      let placeholder = document.querySelector(`#error_fill_in_everything${name}`);
+      let out = "Please answer all questions";
+      placeholder.innerHTML = out;
+      complete = false;
+      continue
+    }
+  }
+  if(!complete){
+    return;
   }
   
 
