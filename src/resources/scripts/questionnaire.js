@@ -44,9 +44,19 @@ var jsonBtn = document.getElementById("btn")
   
 
 jsonBtn.addEventListener("click", function(){
-  let data = {}
   let complete = true;
-  for (let index = 1; index <= 14; index++) {
+  let data = {}
+  var comment = document.getElementById("comment").value
+  var path = window.localStorage.getItem("path");
+  var method = window.localStorage.getItem("method");
+  var timeSpent = window.localStorage.getItem("timeSpent");
+  // var counter = window.localStorage.getItem("counter");
+  data["path"] = path
+  data["method"] = method
+  data["timeSpent"] = timeSpent
+  data["counter"] = timeSpent
+
+  for (let index = 1; index <= 10; index++) {
     try {
       data[`Q${index}`] = document.querySelector(`input[name="Q${index}"]:checked`).value;
     }
@@ -63,6 +73,9 @@ jsonBtn.addEventListener("click", function(){
   if(!complete){
     return;
   }
+
+  data["comment"] = comment
+
   
 
   fetch("/", {
@@ -80,9 +93,6 @@ jsonBtn.addEventListener("click", function(){
       console.log("Sending " + data)
     })
     .catch(err => console.log(err));
-
-var path = window.localStorage.getItem("path");
-var method = window.localStorage.getItem("method");
 
 if (path == "A") {
   if (method == "list") {

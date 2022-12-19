@@ -12,7 +12,7 @@ body{
 }
 
 table{
-	width:  1000px;
+	width: 1700px;;
 	margin: 30px auto;
 }
 
@@ -26,14 +26,11 @@ table th{
 table td{
 	padding: 10px;
 	border:  thin solid #d4d4d4;
-	width: 6%;
+	width: 1%;
 	text-align: center;
 	background-color: #fff;
 }
 
-table img{
-	width:  70%;
-}
 
 table td.total-price{
 	font-weight: bold;

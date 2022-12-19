@@ -182,6 +182,10 @@ router.post('/',function(req,res){
  }
 
  interface Data { 
+    "path":string,
+    "method":string, 
+    "timeSpent":string,
+    "counter":string,
     "Q1":string,
     "Q2":string,
     "Q3":string,
@@ -192,8 +196,6 @@ router.post('/',function(req,res){
     "Q8":string,
     "Q9":string,
     "Q10":string,
-    "Q11":string,
-    "Q12":string, 
-    "Q13":string,
-    "Q14":string,
+    "comment":string,
+
   }

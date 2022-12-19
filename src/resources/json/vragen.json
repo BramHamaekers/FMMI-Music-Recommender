@@ -1,16 +1,27 @@
 [
-{ "tekst" : "I felt that it took too many iterations before the recommended items were adequate."},
-{ "tekst" : "I felt that it took too much time before the recommended items were adequate."},
-{ "tekst" : "Overall, I am satisfied with this recommender system."},
-{ "tekst" : "I am convinced of the items recommended to me."},
-{ "tekst" : "I am confident I will like the items recommended to me."},
-{ "tekst" : "This recommender system can be trusted."},
-{ "tekst" : "The items recommended to me are novel."},
-{ "tekst" : "The items recommended to me are diverse"},
-{ "tekst" : "Some of the recommended items are familiar to me."},
-{ "tekst" : "I was only provided with general recommendations (e.g., top rated products), which are the same for anyone."},
+{ "tekst" : "Overall, I am satisfied with the recommender."},
+{ "tekst" : "I feel in control of modifying my taste profile."},
+{ "tekst" : "The recommender allows me to modify my taste profile."},
+{ "tekst" : "I found it easy to modify my taste profile in the recommender"},
+{ "tekst" : "The recommender helped me find the ideal item."},
+{ "tekst" : "Using the recommender to find what I like is easy."},
+{ "tekst" : "The recommender gave me good suggestions."},
 { "tekst" : "The items recommended to me matched my interests."},
-{ "tekst" : "This recommender system gave me good suggestions."},
-{ "tekst" : "This recommender system explains why the products are recommended to me."},
-{ "tekst" : "I feel in control of telling this recommender system what I want."}
+{ "tekst" : "I found it easy to tell the system what I like/dislike."},
+{ "tekst" : "The recommender system helped me discover new products."}
 ]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

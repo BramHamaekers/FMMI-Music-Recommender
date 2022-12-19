@@ -8,6 +8,10 @@ fetch("answers.json")
    for(let answer of answers){
       out += `
          <tr>
+            <td>${answer.path}</td>
+            <td>${answer.method}</td>
+            <td>${answer.timeSpent}</td>
+            <td>${answer.counter}</td>
             <td>${answer.Q1}</td>
             <td>${answer.Q2}</td>
             <td>${answer.Q3}</td>
@@ -18,10 +22,7 @@ fetch("answers.json")
             <td>${answer.Q8}</td>
             <td>${answer.Q9}</td>
             <td>${answer.Q10}</td>
-            <td>${answer.Q11}</td>
-            <td>${answer.Q12}</td>
-            <td>${answer.Q13}</td>
-            <td>${answer.Q14}</td>
+            <td>${answer.comment}</td>
          </tr>
       `;
    }
