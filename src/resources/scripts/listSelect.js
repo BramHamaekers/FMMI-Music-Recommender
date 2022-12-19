@@ -1,6 +1,37 @@
 import { storeSongs, clearSongs, getSongs } from './storageScripts';
 var request = require('request'); // "Request" library
 var SpotifyWebApi = require('./spotify-web-api-js');
+var client_id = '882f18d8e93e419d85e06d9fe9ee9768'; // Your client id
+var client_secret = '6fb7db9d3d4d45dea315d47e645919aa'; // Your secret
+let token;
+let tokenstring;
+const spotifyApi = new SpotifyWebApi();
+
+// your application requests authorization
+var authOptions = {
+  url: 'https://accounts.spotify.com/api/token',
+  headers: {
+    'Authorization': 'Basic ' + (new Buffer(client_id + ':' + client_secret).toString('base64'))
+  },
+  form: {
+    grant_type: 'client_credentials'
+  },
+  json: true
+};
+
+
+// Gets the token
+request.post(authOptions, function (error, response, body) {
+  if (!error && response.statusCode === 200) {
+
+    // use the access token to access the Spotify Web API
+    token = body.access_token;
+    tokenstring = token.toString();
+    
+    spotifyApi.setAccessToken(tokenstring);
+  }
+});
+
 
 
 //var idList = ["2D3gvohUyOfXIVX6Mvhqae", "7fURZRPkB2S70sYR1naKTK", "4cOdK2wGLETKBW3PvgPWqT", "0b9BpOmZC33EjJNWewLJwK", "2LtMq5ELlpRgzP4JSxMGmn", "2i3VpjK6T6gEDENwlUU4cr", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT"];

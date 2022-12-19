@@ -66,6 +66,11 @@ router.get("/scripts/timerScriptsTest.js", async (_req, res) => {
     res.sendFile(path.join(__dirname, '/../src/resources/scripts/timerScriptsTest.js'));
 });
 
+/** add getter for jquery.js */
+router.get("/scripts/jquery.js", async (_req, res) => {
+    res.sendFile(path.join(__dirname, '/../src/resources/scripts/jquery.js'));
+});
+
 
 /** Template on how to handle a request and return an htlm page */
 router.get("/", async (req, res) => {

@@ -2,8 +2,9 @@
 "use strict";
 
 var _timerScripts = require("./timerScripts");
+var _storageScripts = require("./storageScripts");
 //var idList = ["2D3gvohUyOfXIVX6Mvhqae", "7fURZRPkB2S70sYR1naKTK", "4cOdK2wGLETKBW3PvgPWqT", "0b9BpOmZC33EjJNWewLJwK", "2LtMq5ELlpRgzP4JSxMGmn", "2i3VpjK6T6gEDENwlUU4cr", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT"];
-var idList = getSongs();
+var idList = (0, _storageScripts.getSongs)();
 function createListItem(id, number) {
   var iframe = document.createElement('iframe');
   iframe.src = `https://embed.spotify.com/?uri=spotify:track:${id}`;
@@ -21,8 +22,46 @@ function storeEndTimeHomepage(e) {
   console.log('store end time');
   (0, _timerScripts.storeTimeSpent)();
 }
+document.getElementById("retryBtn").addEventListener("click", retry);
+function retry(e) {
+  window.history.back();
+}
 
-},{"./timerScripts":2}],2:[function(require,module,exports){
+},{"./storageScripts":2,"./timerScripts":3}],2:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.clearSongs = clearSongs;
+exports.getSongs = getSongs;
+exports.storeSongs = storeSongs;
+function storeSongs(songsObject) {
+  const tracks = songsObject.tracks;
+  var songs = [];
+  tracks.forEach(track => {
+    songs.push(track.id);
+  });
+  var count = 1;
+  songs.forEach(song => {
+    window.localStorage.setItem("Song" + count.toString(), song);
+    count += 1;
+  });
+}
+function getSongs() {
+  var songs = [];
+  for (var count = 1; count <= 20; count++) {
+    songs.push(window.localStorage.getItem("Song" + count.toString()));
+  }
+  return songs;
+}
+function clearSongs() {
+  for (var count = 1; count <= 20; count++) {
+    window.localStorage.removeItem("Song" + count.toString());
+  }
+}
+
+},{}],3:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
