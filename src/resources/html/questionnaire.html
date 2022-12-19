@@ -2,6 +2,7 @@
 <html lang="en">
   
 <head>
+    <link rel="stylesheet" href="./css/nicepage.css" media="screen">
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content=
@@ -12,18 +13,10 @@
  
     <style>
  
-        /* Styling the Body element i.e. Color,
-        Font, Alignment */
-        body {
-            background-color: #05c46b;
-            font-family: Verdana;
-            text-align: center;
-        }
- 
         /* Styling the Form (Color, Padding, Shadow) */
         form {
             background-color: #fff;
-            max-width: 700px;
+            max-width: 800px;
             margin: 50px auto;
             padding: 30px 20px;
             box-shadow: 2px 5px 10px rgba(0, 0, 0, 0.5);
@@ -61,93 +54,55 @@
             display: inline-block;
             width: auto;
         }
- 
-        /* Styling Button */
-        button {
-            background-color: #05c46b;
-            border: 1px solid #777;
-            border-radius: 2px;
-            font-family: inherit;
-            font-size: 21px;
-            display: block;
-            width: 100%;
-            margin-top: 50px;
-            margin-bottom: 20px;
-        }
-
-        .center {
-            margin: 0;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            -ms-transform: translate(-50%, -50%);
-            transform: translate(-50%, -50%);
-        }
-
-        .button {
-            background-color: #4CAF50;
-            text-align: center;
-            white-space: nowrap;
-            color: white; /* Text Color */
-            border: none;
-            padding: 16px 32px;
-            display: inline-block;
-            font-size: 24px;
-            transition-duration: 0.4s;
-            cursor: pointer;
-
-        }
-
-        .button:hover {
-            background-color: white;
-            color: black;
-            border: 2px solid #4CAF50;
-        }
-        .styled {
-            border: 0;
-            line-height: 2.5;
-            padding: 0 20px;
-            font-size: 1rem;
-            text-align: center;
-            color: #fff;
-            text-shadow: 1px 1px 1px #000;
-            border-radius: 10px;
-            background-color: rgba(220, 0, 0, 1);
-            background-image: linear-gradient(to top left,
-                                            rgba(0, 0, 0, .2),
-                                            rgba(0, 0, 0, .2) 30%,
-                                            rgba(0, 0, 0, 0));
-            box-shadow: inset 2px 2px 3px rgba(255, 255, 255, .6),
-                        inset -2px -2px 3px rgba(0, 0, 0, .6);
-        }
-
-        .styled:hover {
-            background-color: rgba(255, 0, 0, 1);
-        }
-
-        .styled:active {
-            box-shadow: inset -2px -2px 3px rgba(255, 255, 255, .6),
-                        inset 2px 2px 3px rgba(0, 0, 0, .6);
+        input[type='radio'] { 
+        transform: scale(1.5); 
         }
 
         .likert li {
         float: left;
         list-style-type: none;
+        margin-left: 30px;
+        }
+        .question {
+            font-size: 19px;
+        }
+
+        .errMessage {
+            color:#FF0000;
+            font-size: 15px;
+        }
+        .onderTitel {
+            font-size: 20px;
+        }
+        .titel {
+            font-size: 35px;
+            text-align: center;
+            width: 700px;
+        }
+        .knop {
+            float: right;
         }
     </style>
 </head>
   
-<body>
-    <h1>GeeksforGeeks Survey Form</h1>
-  
-
-    <form id="form">
-        <div id="output-vragen">
-
+<body class = "u-body u-xl-mode">
+    <form id="form" style="color:black;">
+        
+        <div class="titel">
+            <u>Questionnaire</u>
+        </div>
+        <br>
+        <div class="onderTitel">
+            Please answer the following questions about the method you just used:
         </div>
         <br>
         <br>
+        <div id="output-vragen">
+
+        </div>
+
         <br>
+
 
         <div class="form-control">
             <label for="comment">
@@ -159,17 +114,16 @@
             </textarea>
         </div>
   
-
-        <button class="favorite styled" type="button" id="btn">
-            Add to favorites
-        </button>
+        <div class="knop">
+            <button class="u-btn u-btn-round u-button-style u-hover-palette-1-light-1 u-palette-1-base u-radius-50 u-btn-1" type="button" id="btn">
+                Submit
+            </button>
+        </div>
+        <br>
+        <br>
     </form>
     <a href="/answers">Questionnaire results</a>
 
 </body>
   
-<script src="../scripts/questionnaire.js"></script>
-
-
-
 </html>
