@@ -25,6 +25,7 @@ function storeEndTimeHomepage(e) {
 }
 document.getElementById("retryBtn").addEventListener("click", retry);
 function retry(e) {
+  window.localStorage.setItem("retryCount", parseInt(window.localStorage.getItem("retryCount")) + 1);
   window.history.back();
 }
 

@@ -89253,7 +89253,7 @@ request.post(authOptions, function (error, response, body) {
 function createListItem(id, number) {
   var embed = document.createElement("div");
   embed.id = `spotify-embed${number}`;
-  embed.className = "spotify-embed";
+  embed.className = "spotify-embed botMargin";
   embed.draggable = "true";
   var handle = document.createElement("div");
   handle.id = `handle${number}`;
@@ -89322,6 +89322,7 @@ function drop(e) {
   const id = e.dataTransfer.getData('text/plain');
   const draggable = document.getElementById(id);
   if (e.target.classList.contains("rank")) {
+    draggable.classList.remove('botMargin');
     var rank = parseInt(e.target.id[4]); // get ranking number from id of div
     if (rankingList[rank - 1] == '') {
       var songId = idList[parseInt(e.dataTransfer.getData('text/plain')[13])]; // get song id from id of div
@@ -89341,6 +89342,7 @@ function drop(e) {
     // get the draggable element
     const id = e.dataTransfer.getData('text/plain');
     const draggable = document.getElementById(id);
+    draggable.classList.add('botMargin');
 
     // add it to the drop target
     spotifyembeds.prepend(draggable);

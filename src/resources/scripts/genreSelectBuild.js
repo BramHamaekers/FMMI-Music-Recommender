@@ -89397,6 +89397,7 @@ function getRecommendations(e) {
       if (err) console.error(err);else {
         console.log('recommendations', data);
         (0, _storageScripts.storeSongs)(data);
+        window.localStorage.setItem("retryCount", 0);
         if (window.localStorage.getItem("method") == "list") {
           document.location.href = "./listSelect";
         } else if (window.localStorage.getItem("method") == "ranking") {
