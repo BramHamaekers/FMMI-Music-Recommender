@@ -50,11 +50,11 @@ jsonBtn.addEventListener("click", function(){
   var path = window.localStorage.getItem("path");
   var method = window.localStorage.getItem("method");
   var timeSpent = window.localStorage.getItem("timeSpent");
-  // var counter = window.localStorage.getItem("counter");
+  var retryCount = window.localStorage.getItem("retryCount");
   data["path"] = path
   data["method"] = method
   data["timeSpent"] = timeSpent
-  data["counter"] = timeSpent
+  data["retryCount"] = retryCount
 
   for (let index = 1; index <= 10; index++) {
     try {

@@ -185,7 +185,7 @@ router.post('/',function(req,res){
     "path":string,
     "method":string, 
     "timeSpent":string,
-    "counter":string,
+    "retryCount":string,
     "Q1":string,
     "Q2":string,
     "Q3":string,

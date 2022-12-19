@@ -11,7 +11,7 @@ fetch("answers.json")
             <td>${answer.path}</td>
             <td>${answer.method}</td>
             <td>${answer.timeSpent}</td>
-            <td>${answer.counter}</td>
+            <td>${answer.retryCount}</td>
             <td>${answer.Q1}</td>
             <td>${answer.Q2}</td>
             <td>${answer.Q3}</td>
