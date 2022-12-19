@@ -1,4 +1,7 @@
 import { storeSongs, clearSongs, getSongs } from './storageScripts';
+var request = require('request'); // "Request" library
+var SpotifyWebApi = require('./spotify-web-api-js');
+
 
 //var idList = ["2D3gvohUyOfXIVX6Mvhqae", "7fURZRPkB2S70sYR1naKTK", "4cOdK2wGLETKBW3PvgPWqT", "0b9BpOmZC33EjJNWewLJwK", "2LtMq5ELlpRgzP4JSxMGmn", "2i3VpjK6T6gEDENwlUU4cr", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT", "4cOdK2wGLETKBW3PvgPWqT"];
 var idList = getSongs();
@@ -55,8 +58,14 @@ document.getElementById("submitBtn").addEventListener("click", () => {storeAndSe
 
 function storeAndSend() {
   if (songList.length > 0) {
-    console.log(songList);
-    document.location.href = "./Recommendations.html";
+    spotifyApi.getRecommendations({seed_tracks: songList},function (err, data) {
+      if (err) console.error(err);
+      else {
+        console.log('recommendations', data);
+        document.location.href = "./Recommendations.html";
+        storeSongs(data);
+      }
+    })
   }
   
 
