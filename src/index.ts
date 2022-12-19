@@ -93,11 +93,11 @@ router.get("/scripts/test.js", async (_req, res) => {
     res.sendFile(path.join(__dirname, '/../src/resources/scripts/test.js'));
 });
 
-/** Template on how to recieve data from the html webpage  and respond with a json*/
-router.post('/',function(req,res){
-    console.log(req.body);
-    res.json({"Response": "Data recieved!"});
-});
+// /** Template on how to recieve data from the html webpage  and respond with a json*/
+// router.post('/',function(req,res){
+//     console.log(req.body);
+//     res.json({"Response": "Data recieved!"});
+// });
 
 /** get storage test page*/
 router.get("/storageTest", async (req, res) => {
@@ -108,3 +108,77 @@ router.get("/storageTest", async (req, res) => {
 router.get("/timerTest", async (req, res) => {
     res.sendFile(path.join(__dirname, '/../src/resources/html/timerTest.html'));
 });
+
+
+
+
+router.get("/questionnaire", async (_req, res) => {
+        res.sendFile(path.join(__dirname, '/../src/resources/html/questionnaire.html'));
+});
+
+router.get("/answers", async (_req, res) => {
+    res.sendFile(path.join(__dirname, '/../src/resources/html/answers.html'));
+});
+
+router.get("/scripts/questionnaire.js", async (_req, res) => {
+    res.sendFile(path.join(__dirname, '/../src/resources/scripts/questionnaire.js'));
+});
+
+  
+router.get("/scripts/answers.js", async (_req, res) => {
+    res.sendFile(path.join(__dirname, '/../src/resources/scripts/answers.js'));
+});
+
+router.get("/answers.json", async (_req, res) => {
+    res.sendFile(path.join(__dirname, '/../src/resources/html/answers.json'));
+});
+
+router.get("/vragen.json", async (_req, res) => {
+    res.sendFile(path.join(__dirname, '/../src/resources/html/vragen.json')); 
+});   
+
+router.get("/styles.css", async (_req, res) => {
+    res.sendFile(path.join(__dirname, '/../src/resources/html/styles.css'));
+});
+
+router.post('/',function(req,res){
+    console.log("Received message " + req.body["message"]);  
+    var pathstr = String.raw`C:\Users\woutv\Documents\Unief\2e_Master\Semester1\HMI\Project\FMMI-Music-Recommender\src\resources\html\answers.json`;
+    writeToJson(pathstr, req.body["message"]) 
+    res.json({"Response": "Data recieved!"}); 
+ }); 
+
+
+ function writeToJson(path: string, data: any) 
+ {
+     let old_data: any = fs.readFileSync(path, "utf-8")
+     if(old_data.length == 0)
+     {
+        fs.writeFileSync(path, "[" + JSON.stringify(data, null, 4) + "]")
+        return
+     }
+     let json_obj: Data[] = JSON.parse(old_data) || [] // No longer need extra array; initialoze as an empty array if needed
+     console.log(json_obj);
+
+     json_obj.push(data)
+     console.log(json_obj);  
+
+     fs.writeFileSync(path, JSON.stringify(json_obj, null, 4))
+ }
+
+ interface Data { 
+    "Q1":string,
+    "Q2":string,
+    "Q3":string,
+    "Q4":string,
+    "Q5":string,
+    "Q6":string,
+    "Q7":string,
+    "Q8":string,
+    "Q9":string,
+    "Q10":string,
+    "Q11":string,
+    "Q12":string, 
+    "Q13":string,
+    "Q14":string,
+  }
