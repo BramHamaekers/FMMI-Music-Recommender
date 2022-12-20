@@ -151,7 +151,7 @@ function drop(e) {
         draggable.classList.remove('botMargin');
         var rank = parseInt(e.target.id[4]) // get ranking number from id of div
         if (rankingList[rank-1] == '') {
-            var songId = idList[parseInt(e.dataTransfer.getData('text/plain')[13])]; // get song id from id of div
+            var songId = idList[parseInt(e.dataTransfer.getData('text/plain').slice(13))]; // get song id from id of div
             rankingList[rankingList.indexOf(songId)] = ''; //remove duplicates
             rankingList[rank-1] = songId;
             e.target.classList.remove('drag-over');
@@ -162,7 +162,7 @@ function drop(e) {
     }
 
     if (e.target.id == "spotify-embeds") {
-        var songId = idList[parseInt(e.dataTransfer.getData('text/plain')[13])]; // get song id from id of div
+        var songId = idList[parseInt(e.dataTransfer.getData('text/plain').slice(13))]; // get song id from id of div
         rankingList[rankingList.indexOf(songId)] = '';
         spotifyembeds.classList.remove('drag-over');
 

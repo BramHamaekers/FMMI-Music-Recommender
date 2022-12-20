@@ -46180,8 +46180,8 @@ function _setExports(ndebug) {
 
 module.exports = _setExports(process.env.NODE_NDEBUG);
 
-}).call(this)}).call(this,{"isBuffer":require("../../../../.nvm/versions/node/v16.10.0/lib/node_modules/browserify/node_modules/is-buffer/index.js")},require('_process'))
-},{"../../../../.nvm/versions/node/v16.10.0/lib/node_modules/browserify/node_modules/is-buffer/index.js":154,"_process":187,"assert":17,"stream":212,"util":253}],306:[function(require,module,exports){
+}).call(this)}).call(this,{"isBuffer":require("../../../../../../AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js")},require('_process'))
+},{"../../../../../../AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js":154,"_process":187,"assert":17,"stream":212,"util":253}],306:[function(require,module,exports){
 
 /*!
  *  Copyright 2010 LearnBoost <dev@learnboost.com>
@@ -47710,8 +47710,8 @@ CombinedStream.prototype._emitError = function(err) {
   this.emit('error', err);
 };
 
-}).call(this)}).call(this,{"isBuffer":require("../../../../../.nvm/versions/node/v16.10.0/lib/node_modules/browserify/node_modules/is-buffer/index.js")})
-},{"../../../../../.nvm/versions/node/v16.10.0/lib/node_modules/browserify/node_modules/is-buffer/index.js":154,"delayed-stream":313,"stream":212,"util":253}],313:[function(require,module,exports){
+}).call(this)}).call(this,{"isBuffer":require("../../../../../../../AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js")})
+},{"../../../../../../../AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js":154,"delayed-stream":313,"stream":212,"util":253}],313:[function(require,module,exports){
 var Stream = require('stream').Stream;
 var util = require('util');
 
@@ -50683,8 +50683,8 @@ module.exports = {
 
 };
 
-}).call(this)}).call(this,{"isBuffer":require("../../../../../.nvm/versions/node/v16.10.0/lib/node_modules/browserify/node_modules/is-buffer/index.js")})
-},{"../../../../../.nvm/versions/node/v16.10.0/lib/node_modules/browserify/node_modules/is-buffer/index.js":154,"./utils":347,"assert-plus":305,"crypto":81,"http":227,"jsprim":355,"sshpk":402,"util":253}],347:[function(require,module,exports){
+}).call(this)}).call(this,{"isBuffer":require("../../../../../../../AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js")})
+},{"../../../../../../../AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js":154,"./utils":347,"assert-plus":305,"crypto":81,"http":227,"jsprim":355,"sshpk":402,"util":253}],347:[function(require,module,exports){
 // Copyright 2012 Joyent, Inc.  All rights reserved.
 
 var assert = require('assert-plus');
@@ -81439,8 +81439,8 @@ Key._oldVersionDetect = function (obj) {
 	return ([1, 0]);
 };
 
-}).call(this)}).call(this,{"isBuffer":require("../../../../../.nvm/versions/node/v16.10.0/lib/node_modules/browserify/node_modules/is-buffer/index.js")})
-},{"../../../../../.nvm/versions/node/v16.10.0/lib/node_modules/browserify/node_modules/is-buffer/index.js":154,"./algs":383,"./dhe":385,"./ed-compat":386,"./errors":387,"./fingerprint":388,"./formats/auto":389,"./formats/dnssec":390,"./formats/pem":392,"./formats/pkcs1":393,"./formats/pkcs8":394,"./formats/putty":395,"./formats/rfc4253":396,"./formats/ssh":398,"./formats/ssh-private":397,"./private-key":404,"./signature":405,"./utils":407,"assert-plus":305,"crypto":81}],404:[function(require,module,exports){
+}).call(this)}).call(this,{"isBuffer":require("../../../../../../../AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js")})
+},{"../../../../../../../AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js":154,"./algs":383,"./dhe":385,"./ed-compat":386,"./errors":387,"./fingerprint":388,"./formats/auto":389,"./formats/dnssec":390,"./formats/pem":392,"./formats/pkcs1":393,"./formats/pkcs8":394,"./formats/putty":395,"./formats/rfc4253":396,"./formats/ssh":398,"./formats/ssh-private":397,"./private-key":404,"./signature":405,"./utils":407,"assert-plus":305,"crypto":81}],404:[function(require,module,exports){
 // Copyright 2017 Joyent, Inc.
 
 module.exports = PrivateKey;
@@ -89212,8 +89212,8 @@ function objectToString(o) {
   return Object.prototype.toString.call(o);
 }
 
-}).call(this)}).call(this,{"isBuffer":require("../../../../../../../.nvm/versions/node/v16.10.0/lib/node_modules/browserify/node_modules/is-buffer/index.js")})
-},{"../../../../../../../.nvm/versions/node/v16.10.0/lib/node_modules/browserify/node_modules/is-buffer/index.js":154}],423:[function(require,module,exports){
+}).call(this)}).call(this,{"isBuffer":require("../../../../../../../../../AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js")})
+},{"../../../../../../../../../AppData/Roaming/npm/node_modules/browserify/node_modules/is-buffer/index.js":154}],423:[function(require,module,exports){
 (function (Buffer){(function (){
 "use strict";
 
@@ -89297,7 +89297,6 @@ function dragEnd(e) {
       embed.classList.remove("no-drag-target");
     });
     e.dataTransfer.setData('text/plain', e.target.id);
-    console.log("aaaaaaa", e.dataTransfer.getData('text/plain'));
     setTimeout(() => {
       e.target.classList.remove('hide');
     }, 0);
@@ -89335,7 +89334,7 @@ function drop(e) {
     draggable.classList.remove('botMargin');
     var rank = parseInt(e.target.id[4]); // get ranking number from id of div
     if (rankingList[rank - 1] == '') {
-      var songId = idList[parseInt(e.dataTransfer.getData('text/plain')[13])]; // get song id from id of div
+      var songId = idList[parseInt(e.dataTransfer.getData('text/plain').slice(13))]; // get song id from id of div
       rankingList[rankingList.indexOf(songId)] = ''; //remove duplicates
       rankingList[rank - 1] = songId;
       e.target.classList.remove('drag-over');
@@ -89345,7 +89344,7 @@ function drop(e) {
     }
   }
   if (e.target.id == "spotify-embeds") {
-    var songId = idList[parseInt(e.dataTransfer.getData('text/plain')[13])]; // get song id from id of div
+    var songId = idList[parseInt(e.dataTransfer.getData('text/plain').slice(13))]; // get song id from id of div
     rankingList[rankingList.indexOf(songId)] = '';
     spotifyembeds.classList.remove('drag-over');
 
