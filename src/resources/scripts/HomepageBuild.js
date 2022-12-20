@@ -28,7 +28,7 @@ exports.clearTimes = clearTimes;
 exports.storeStartTime = storeStartTime;
 exports.storeTimeSpent = storeTimeSpent;
 function storeStartTime() {
-  const date = new Date();
+  const date = new Date(); 
   window.localStorage.setItem("startTime", date);
 }
 function storeTimeSpent() {

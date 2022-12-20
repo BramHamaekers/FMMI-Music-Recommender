@@ -19,6 +19,25 @@
     <meta property="og:title" content="List Select">
     <meta property="og:description" content="">
     <meta property="og:type" content="website">
+    <style>
+      .numberOfSongs {
+        font-size: 35px;
+        text-align: center;
+      }
+      .block1 .block2 .block3{
+        display:inline;
+      }
+      #block_container {
+        font-size: 35px;
+        display: flex;
+        justify-content: center;
+      }
+      .uitleg {
+        font-size: 17px;
+        text-align: center;
+        color: #1BCF5B;
+      }
+    </style>
   </head>
   <body class="u-body u-xl-mode" data-lang="nl">
 <script type="text/javascript" src="../scripts/jquery.js"></script>
@@ -30,6 +49,10 @@ var scaleCurve = mojs.easing.path('M0,100 L25,99.9999983 C26.2328835,75.0708847 
   // mo.js timeline obj
   timeline = new mojs.Timeline();
   var count = 0; 
+  let placeholderCounter = document.querySelector("#nmbSelectedCounter");
+  let placeholderBlock1 = document.querySelector("#block1");
+  let placeholderBlock3 = document.querySelector("#block3");
+
 
 
 // when clicking the button start the timeline/animation:
@@ -80,23 +103,46 @@ $( ".heart-button" ).click(function() {
     timeline.add(tween1, tween2, tween3);
 
     if ($(this).hasClass('active')){
-      $(this).removeClass('active');
-      count--;
+        $(this).removeClass('active');
+        count--;
+        if (count == 4){
+          placeholderCounter.innerHTML = (5-count).toString();
+          placeholderBlock1.innerHTML = `You can select&nbsp`;
+          placeholderBlock3.innerHTML = `&nbspmore song(s)`;
+        }
+        else{
+          placeholderCounter.innerHTML = (5-count).toString();
+
+        }
+
     }else if (count != 5){
-    count++;
-    
-    timeline.play();
-    $(this).addClass('active');
+        count++;
+        if (count == 5){
+          placeholderCounter.innerHTML = "You can only select up to 5 songs";
+          placeholderBlock1.innerHTML = `&nbsp`;
+          placeholderBlock3.innerHTML = `&nbsp`;
+
+        }
+        else {
+          placeholderCounter.innerHTML = (5-count).toString();
+        }
+        
+        timeline.play();
+        $(this).addClass('active');
     }
   });
 
 
   });
+
+
+ 
 </script>
     
   <section class="u-clearfix u-section-1" id="sec-c806">
       <div class="u-clearfix u-sheet u-sheet-1">
         <h1 class="u-text u-text-default u-text-1">Select up to 5 songs you enjoy</h1>
+        <div class = "uitleg">Don't know the song? Just hit the play button to listen to a preview! </div>
         <div class="u-container-style u-group u-shape-rectangle u-group-1">
           <div class="u-container-layout u-container-layout-1 song-list">
 
@@ -104,6 +150,14 @@ $( ".heart-button" ).click(function() {
               <!--List with 20 spotify embeds-->
             </div>
           </div>
+        </div>
+        <!-- <div class = "numberOfSongs" id = "numberOfSongs">Please select 5 more songs</div> -->
+        <div id="block_container">
+
+          <div class="bloc1" id = "block1">You can select&nbsp</div>  
+          <div class="bloc2" id = "nmbSelectedCounter">5</div>
+          <div class="bloc3" id = "block3"> &nbspmore song(s)</div>
+      
         </div>
         <a id="submitBtn" class="u-btn u-btn-round u-button-style u-hover-palette-1-light-1 u-palette-1-base u-radius-50 u-btn-1">Submit</a>
       </div>
