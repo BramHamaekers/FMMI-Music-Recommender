@@ -1,2 +1,2 @@
-docker build -t my-app .
-docker run -p 3460:3460 my-app
+docker build -t group6-music-recommender .
+docker run --name group6-music-recommender -p 3460:3460 my-app
