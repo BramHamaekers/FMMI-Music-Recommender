@@ -13,7 +13,7 @@ function createListItem(id, number) {
   iframe.frameBorder = "0";
   document.getElementById(`embed${number}`).appendChild(iframe);
 }
-for (var i = 1; i < 21; i++) {
+for (var i = 1; i < 9; i++) {
   createListItem(idList[i - 1], i);
 }
 document.getElementById("endBtn").addEventListener("click", storeEndTimeHomepage);
