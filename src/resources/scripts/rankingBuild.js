@@ -89277,22 +89277,31 @@ embeds.forEach(embed => {
   embed.addEventListener("dragend", dragEnd);
 });
 function dragStart(e) {
-  embeds.forEach(embed => {
-    embed.classList.add("no-drag-target");
-  });
   e.dataTransfer.setData('text/plain', e.target.id);
+  console.log("id on start drag", e.target.id);
+  console.log("id on start drag datatransfer", e.dataTransfer.getData('text/plain'));
   setTimeout(() => {
-    e.target.classList.add('hide');
-  }, 0);
+    //voor chrome
+    embeds.forEach(embed => {
+      embed.classList.add("no-drag-target");
+    });
+    setTimeout(() => {
+      e.target.classList.add('hide');
+    }, 0);
+  }, 10);
 }
 function dragEnd(e) {
-  embeds.forEach(embed => {
-    embed.classList.remove("no-drag-target");
-  });
-  e.dataTransfer.setData('text/plain', e.target.id);
   setTimeout(() => {
-    e.target.classList.remove('hide');
-  }, 0);
+    //voor chrome
+    embeds.forEach(embed => {
+      embed.classList.remove("no-drag-target");
+    });
+    e.dataTransfer.setData('text/plain', e.target.id);
+    console.log("aaaaaaa", e.dataTransfer.getData('text/plain'));
+    setTimeout(() => {
+      e.target.classList.remove('hide');
+    }, 0);
+  }, 10);
 }
 const ranks = document.querySelectorAll('.rank');
 ranks.forEach(rank => {
@@ -89321,6 +89330,7 @@ function drop(e) {
   // get the draggable element
   const id = e.dataTransfer.getData('text/plain');
   const draggable = document.getElementById(id);
+  console.log(id, draggable);
   if (e.target.classList.contains("rank")) {
     draggable.classList.remove('botMargin');
     var rank = parseInt(e.target.id[4]); // get ranking number from id of div
