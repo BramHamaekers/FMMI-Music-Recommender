@@ -1,14 +1,14 @@
 [
 { "tekst" : "Overall, I am satisfied with the recommender."},
-{ "tekst" : "I feel in control of modifying my taste profile."},
-{ "tekst" : "The recommender allows me to modify my taste profile."},
-{ "tekst" : "I found it easy to modify my taste profile in the recommender"},
-{ "tekst" : "The recommender helped me find the ideal item."},
+{ "tekst" : "I feel in control of modifying my preferences."},
+{ "tekst" : "The recommender allows me to modify my preferences."},
+{ "tekst" : "I found it easy to modify my preferences in the recommender"},
+{ "tekst" : "The recommender helped me find the ideal song."},
 { "tekst" : "Using the recommender to find what I like is easy."},
 { "tekst" : "The recommender gave me good suggestions."},
-{ "tekst" : "The items recommended to me matched my interests."},
+{ "tekst" : "The songs recommended to me matched my interests."},
 { "tekst" : "I found it easy to tell the system what I like/dislike."},
-{ "tekst" : "The recommender system helped me discover new products."}
+{ "tekst" : "The recommender system helped me discover new songs."}
 ]
 
 
