@@ -52,7 +52,67 @@ print("Averages for B list select: " + ', '.join(list(map(str, getAveragesAndMed
 print("Medians for B list select: " + ', '.join(list(map(str, getAveragesAndMedians(BList)[len(BList[0]):]))))
 print("Averages for B ranking select: " + ', '.join(list(map(str, getAveragesAndMedians(BRanking)[0:len(BRanking[0])]))))
 print("Medians for B ranking select: " + ', '.join(list(map(str, getAveragesAndMedians(BRanking)[len(BRanking[0]):]))))
+
+print("Averages for list select: " + ', '.join(list(map(str, getAveragesAndMedians(AList + BList)[0:len(BRanking[0])]))))
+print("Medians for list select: " + ', '.join(list(map(str, getAveragesAndMedians(AList + BList)[len(BRanking[0]):]))))
+
+print("Averages for ranking select: " + ', '.join(list(map(str, getAveragesAndMedians(ARanking + BRanking)[0:len(BRanking[0])]))))
+print("Medians for ranking select: " + ', '.join(list(map(str, getAveragesAndMedians(ARanking + BRanking)[len(BRanking[0]):]))))
+
+for j in range(12) :
+
+    print(j-1)
+    for i in range(len(AList)) : print(AList[i][j], end = ',')
+    for i in range(len(BList)) : print(BList[i][j], end = ',')
+    print("")
+    for i in range(len(ARanking)) : print(ARanking[i][j], end = ',')
+    for i in range(len(BRanking)) : print(BRanking[i][j], end = ',')
+    print("")
+
 #print(getAveragesAndMedians(AList))
 #print(getAveragesAndMedians(ARanking))
 #print(getAveragesAndMedians(BList))
 #print(getAveragesAndMedians(BRanking))
+
+listCount = []
+rankingCount = []
+
+print(AList)
+print(BList)
+
+for i in range(2,12):
+    listCountTemp = [0,0,0,0,0]
+    rankingCountTemp = [0,0,0,0,0]
+    for answers in AList:
+        if (answers[i] == '1'): listCountTemp[0] += 1
+        elif (answers[i] == '2'): listCountTemp[1] += 1
+        elif (answers[i] == '3'): listCountTemp[2] += 1
+        elif (answers[i] == '4'): listCountTemp[3] += 1
+        elif (answers[i] == '5'): listCountTemp[4] += 1
+
+    for answers in ARanking:
+        if (answers[i] == '1'): rankingCountTemp[0] += 1
+        elif (answers[i] == '2'): rankingCountTemp[1] += 1
+        elif (answers[i] == '3'): rankingCountTemp[2] += 1
+        elif (answers[i] == '4'): rankingCountTemp[3] += 1
+        elif (answers[i] == '5'): rankingCountTemp[4] += 1
+
+    for answers in BList:
+        if (answers[i] == '1'): listCountTemp[0] += 1
+        elif (answers[i] == '2'): listCountTemp[1] += 1
+        elif (answers[i] == '3'): listCountTemp[2] += 1
+        elif (answers[i] == '4'): listCountTemp[3] += 1
+        elif (answers[i] == '5'): listCountTemp[4] += 1
+
+    for answers in BRanking:
+        if (answers[i] == '1'): rankingCountTemp[0] += 1
+        elif (answers[i] == '2'): rankingCountTemp[1] += 1
+        elif (answers[i] == '3'): rankingCountTemp[2] += 1
+        elif (answers[i] == '4'): rankingCountTemp[3] += 1
+        elif (answers[i] == '5'): rankingCountTemp[4] += 1
+
+    listCount.append(listCountTemp)
+    rankingCount.append(rankingCountTemp)
+
+#print(listCount)
+#print(rankingCount)
